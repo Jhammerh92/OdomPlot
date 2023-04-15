@@ -2,16 +2,26 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from scipy.spatial.transform import Rotation
+import os
 
 # fitness = np.loadtxt('/home/slamnuc/Desktop/fitness_all_keyframes.csv', delimiter=",", dtype=float, usecols=[0])
 # print(fitness)
 
-
+def moving_average(a, n=3) :
+        ret = np.cumsum(a, dtype=float)
+        ret[n:] = ret[n:] - ret[:-n]
+        return ret[n - 1:] / n
 
 class PlotOdom:
-    def __init__(self, csv_path) -> None:
-        self.path = csv_path
-        self.data = np.genfromtxt(csv_path, dtype=float, delimiter=',', names=True, skip_header=31)
+    def __init__(self, abs_csv_path:os.PathLike=None, name:str=None) -> None:
+        if abs_csv_path is None:
+            abs_csv_path = os.path.join("data",name + "_run_data.csv")
+        assert os.path.isfile(abs_csv_path), f"path does not exist: {abs_csv_path}"
+
+        self.path = abs_csv_path
+        self.data = np.genfromtxt(abs_csv_path, dtype=float, delimiter=',', names=True, skip_header=31)
+
+
         self.headers = self.data.dtype.names
         for header in self.headers:
             setattr(self, header, self.data[header])
@@ -87,14 +97,43 @@ class PlotOdom:
     def plot_ang_bias(self, fig=None):
         self._general_plot_handle(fig, self._plot_ang_bias, timewise=True)
 
-    def plot_fitness(self):
-        plt.figure()
-        plt.plot(self.time, self.residual_norm*1e3, label="Linear Residual Norm")
-        plt.plot(self.time, self.residual_qnorm *100, label="Rotational Residual Norm")
-        plt.plot(self.time, self.fitness*1e3, label="Scan Match Fitness")
-        plt.xlabel("Time [s]")
-        plt.ylabel("Residual/Fitness [mm] / [1/100°]")
-        plt.legend()
+    def plot_fitness(self, fig=None):
+        self._general_plot_handle(fig, self._plot_fitness, timewise=True)
+
+    def _plot_fitness(self):
+        n = 7
+        self.axes.plot(self.time,  self.residual_norm*1e3, label="Linear Residual Norm", marker='.', ls='-')
+        self.axes.plot(self.time,  self.residual_qnorm*1e2, label="Rotational Residual Norm", marker='.', ls='-')
+        self.axes.plot(self.time,  self.fitness*1e3, label="Scan Match Fitness", marker='.',  ls='-')
+        self.axes.set_prop_cycle(None)
+        # self.axes.plot(self.time[:-(n-1)],  moving_average(self.residual_norm*1e3 , n), label="Linear Residual Norm", lw = 2.0)
+        # self.axes.plot(self.time[:-(n-1)],  moving_average(self.residual_qnorm *1e2, n), label="Rotational Residual Norm")
+        # self.axes.plot(self.time[:-(n-1)],  moving_average(self.fitness*1e3, n), label="Scan Match Fitness")
+        # self.axes.set_xlabel("Time [s]")
+        self.axes.set_ylabel("Residual/Fitness [mm] / [1/100°]")
+
+
+    def plot_fitness_boxplot(self, fig=None):
+        self._general_plot_handle(fig, self._plot_fitness_boxplot, timewise=False)
+
+    def custom_boxplot(self, ax:plt.Axes, data, index=0, c='C0'):
+        data_list = [data if i==index else np.array([np.nan]) for i in range(index+1)]
+
+        ax.scatter(np.random.normal(index+1, 0.1, len(data)), data, marker='.', s=2.5, alpha=0.5, c=f"C{index}")
+        ax.boxplot(data_list, showfliers = False, widths=(0.9), vert=True)
+
+    def _plot_fitness_boxplot(self):
+        data = [self.residual_norm*1e3, self.residual_qnorm *100, self.fitness*1e3]
+
+        for i, d in enumerate(data):
+            self.custom_boxplot(self.axes, d, i)
+
+        self.axes.set_xticks([1,2,3],['P Norm', 'q Norm', 'Fitness'])
+        self.axes.set_ylim([0, 75])
+        # self.axes.set_xlim([0, 100])
+        self.axes.grid(False)
+        self.fig.set_figwidth(3)
+        self.axes.set_ylabel("Residual/Fitness [mm] / [1/100°]")
 
     def _plot_timewise(self, plot_call):
         plot_call()
@@ -119,6 +158,7 @@ class PlotOdom:
             self.axes.legend()
 
 
+    
 
 
 
@@ -251,23 +291,27 @@ class PlotKalman(PlotOdom):
 
 
 if __name__ == "__main__":
-    Plotter = PlotOdom(r"/home/slamnuc/temp_saved_odometry_data/odometry/run_data.csv")
+    dir_data = os.path.realpath("data")
+    data_set = "frontyard"
+
+    Plotter = PlotOdom(name=data_set)
     # PlotterKalman = PlotKalman(r"/home/slamnuc/temp_saved_odometry_data/kalman/kalman_data.csv")
     # print(Plotter.data)
     # Plotter.plot_odometry()
     # Plotter.plot_odometry_2D()
-    Plotter.plot_fitness()
-    Plotter.plot_translation_cov()
+    # Plotter.plot_fitness()
+    Plotter.plot_fitness_boxplot()
+    # Plotter.plot_translation_cov()
 
 
-    Plotter.plot_acc_bias()
-    Plotter.plot_ang_bias()
+    # Plotter.plot_acc_bias()
+    # Plotter.plot_ang_bias()
     # PlotterKalman.plot_acc_bias()
     # PlotterKalman.plot_ang_bias()
 
 
-    fig, axes = plt.subplots(1,1, constrained_layout=True)
-    Plotter.plot_velocity(axes)
-    Plotter.plot_observer_velocity(axes)
+    # fig, axes = plt.subplots(1,1, constrained_layout=True)
+    # Plotter.plot_velocity(axes)
+    # Plotter.plot_observer_velocity(axes)
     # PlotterKalman.plot_velocity(axes)
     plt.show()
