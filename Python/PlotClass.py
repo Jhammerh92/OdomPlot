@@ -12,10 +12,14 @@ def moving_average(a, n=3) :
         ret[n:] = ret[n:] - ret[:-n]
         return ret[n - 1:] / n
 
+def capfirst(s:str):
+    return s[:1].upper() + s[1:]
+
 class PlotOdom:
     def __init__(self, abs_csv_path:os.PathLike=None, name:str=None) -> None:
         if abs_csv_path is None:
             abs_csv_path = os.path.join("data",name + "_run_data.csv")
+            self.name = capfirst(name.replace('_', ' '))
         assert os.path.isfile(abs_csv_path), f"path does not exist: {abs_csv_path}"
 
         self.path = abs_csv_path
@@ -37,7 +41,7 @@ class PlotOdom:
 
         plt.rcParams['figure.figsize'] = (9, 5)
         plt.rcParams['figure.constrained_layout.use'] = True
-        plt.rcParams['font.size'] = 11
+        plt.rcParams['font.size'] = 10
         plt.rcParams['axes.grid'] = True
         plt.rcParams['lines.linewidth'] = 1.0
 
@@ -113,8 +117,9 @@ class PlotOdom:
         self.axes.set_ylabel("Residual/Fitness [mm] / [1/100°]")
 
 
-    def plot_fitness_boxplot(self, fig=None):
-        self._general_plot_handle(fig, self._plot_fitness_boxplot, timewise=False)
+    def plot_fitness_boxplot(self, ax=None):
+        self._general_plot_handle(self._plot_fitness_boxplot, timewise=False, ax=ax)
+        
 
     def custom_boxplot(self, ax:plt.Axes, data, index=0, c='C0'):
         data_list = [data if i==index else np.array([np.nan]) for i in range(index+1)]
@@ -132,19 +137,22 @@ class PlotOdom:
         self.axes.set_ylim([0, 75])
         # self.axes.set_xlim([0, 100])
         self.axes.grid(False)
-        self.fig.set_figwidth(3)
+        # self.fig.set_figwidth(3)
         self.axes.set_ylabel("Residual/Fitness [mm] / [1/100°]")
 
     def _plot_timewise(self, plot_call):
         plot_call()
         self.axes.set_xlabel("Time [s]")
 
-    def _general_plot_handle(self,fig:plt.Figure, plot_call, timewise=True):
-        if fig is None:
+    # def _general_plot_handle(self, fig:plt.Figure=None, ax:plt.Axes, plot_call, timewise=True):
+    def _general_plot_handle(self, plot_call, timewise=True, ax:plt.Axes=None):
+        if ax is None:
             self.fig, self.axes = plt.subplots()
+            
         else:
-            self.fig = fig
-            self.axes = fig.axes
+            # if not fig.axes:
+            self.axes = ax
+            # self.fig = fig
 
         if timewise:
             self._plot_timewise( plot_call)
@@ -156,6 +164,9 @@ class PlotOdom:
                 ax.legend()
         else:
             self.axes.legend()
+
+
+        self.axes.set_title(self.name)
 
 
     
@@ -184,7 +195,7 @@ class PlotOdom:
 
         fig = None
         if axes is None:
-            fig, axes = plt.subplots(2,1, constrained_layout=True)
+            fig, axes = plt.subplots(2,1, constrained_layout=True, num=f"Odometry {capfirst(self.name)}")
 
         axes[0].scatter(x[0], y[0], s=50, color='g', marker='x') # start
         axes[0].scatter(x[-1], y[-1], s=50, color='r', marker='x') # end
@@ -292,23 +303,29 @@ class PlotKalman(PlotOdom):
 
 if __name__ == "__main__":
     dir_data = os.path.realpath("data")
-    data_set = "frontyard"
+    data_set_1 = "lobby_01"
+    data_set_2 = "lobby_01_NDT"
 
-    Plotter = PlotOdom(name=data_set)
+    Plotter1 = PlotOdom(name=data_set_1)
+    Plotter2 = PlotOdom(name=data_set_2)
     # PlotterKalman = PlotKalman(r"/home/slamnuc/temp_saved_odometry_data/kalman/kalman_data.csv")
     # print(Plotter.data)
     # Plotter.plot_odometry()
-    # Plotter.plot_odometry_2D()
+    Plotter1.plot_odometry_2D()
     # Plotter.plot_fitness()
-    Plotter.plot_fitness_boxplot()
+    # Plotter.plot_fitness_boxplot()
     # Plotter.plot_translation_cov()
+
+    # fig, axes = plt.subplots(1,2, num="boxplots", sharey=True)
+    # Plotter1.plot_fitness_boxplot(axes[0])
+    # Plotter2.plot_fitness_boxplot(axes[1])
+
 
 
     # Plotter.plot_acc_bias()
     # Plotter.plot_ang_bias()
     # PlotterKalman.plot_acc_bias()
     # PlotterKalman.plot_ang_bias()
-
 
     # fig, axes = plt.subplots(1,1, constrained_layout=True)
     # Plotter.plot_velocity(axes)
