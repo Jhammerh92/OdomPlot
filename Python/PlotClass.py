@@ -34,7 +34,7 @@ class PlotOdom:
 
         self.residual_norm = np.sqrt(np.square( self.residual_x) + np.square(self.residual_y) + np.square(self.residual_z))
         # self.residual_qnorm = np.sqrt(np.square(1- np.abs(self.residual_qw)) + np.square( self.residual_qx) + np.square(self.residual_qy) + np.square(self.residual_qz))
-        self.residual_qnorm = np.rad2deg(np.sqrt( np.square( self.residual_qx) + np.square(self.residual_qy) + np.square(self.residual_qz)))
+        self.residual_qnorm = (np.sqrt( np.square( self.residual_qx) + np.square(self.residual_qy) + np.square(self.residual_qz)))
         
         self.fig = None
         self.axes= None
@@ -44,6 +44,7 @@ class PlotOdom:
         plt.rcParams['font.size'] = 10
         plt.rcParams['axes.grid'] = True
         plt.rcParams['lines.linewidth'] = 1.0
+        plt.rcParams['figure.dpi'] = 150
 
         print(plt.rcParams)
         
@@ -87,8 +88,8 @@ class PlotOdom:
         self.axes.set_ylabel("$b_a$ $[m/s²]$")
         # self.axes.legend()
 
-    def plot_acc_bias(self, fig=None):
-        self._general_plot_handle(fig, self._plot_acc_bias, timewise=True)
+    def plot_acc_bias(self, ax=None):
+        self._general_plot_handle(self._plot_acc_bias, timewise=True,ax=ax)
 
 
     def _plot_ang_bias(self):
@@ -98,16 +99,16 @@ class PlotOdom:
         self.axes.set_ylabel("$b_g$ $[rad/s]$")
         
 
-    def plot_ang_bias(self, fig=None):
-        self._general_plot_handle(fig, self._plot_ang_bias, timewise=True)
+    def plot_ang_bias(self, ax=None):
+        self._general_plot_handle( self._plot_ang_bias, timewise=True, ax=ax)
 
-    def plot_fitness(self, fig=None):
-        self._general_plot_handle(fig, self._plot_fitness, timewise=True)
+    def plot_fitness(self, ax=None):
+        self._general_plot_handle(self._plot_fitness, timewise=True,ax=ax)
 
     def _plot_fitness(self):
         n = 7
         self.axes.plot(self.time,  self.residual_norm*1e3, label="Linear Residual Norm", marker='.', ls='-')
-        self.axes.plot(self.time,  self.residual_qnorm*1e2, label="Rotational Residual Norm", marker='.', ls='-')
+        self.axes.plot(self.time,  np.rad2deg(self.residual_qnorm)*1e2, label="Rotational Residual Norm", marker='.', ls='-')
         self.axes.plot(self.time,  self.fitness*1e3, label="Scan Match Fitness", marker='.',  ls='-')
         self.axes.set_prop_cycle(None)
         # self.axes.plot(self.time[:-(n-1)],  moving_average(self.residual_norm*1e3 , n), label="Linear Residual Norm", lw = 2.0)
@@ -128,7 +129,7 @@ class PlotOdom:
         ax.boxplot(data_list, showfliers = False, widths=(0.9), vert=True)
 
     def _plot_fitness_boxplot(self):
-        data = [self.residual_norm*1e3, self.residual_qnorm *100, self.fitness*1e3]
+        data = [self.residual_norm*1e3, np.rad2deg(self.residual_qnorm) *100, self.fitness*1e3]
 
         for i, d in enumerate(data):
             self.custom_boxplot(self.axes, d, i)
@@ -137,7 +138,7 @@ class PlotOdom:
         self.axes.set_ylim([0, 75])
         # self.axes.set_xlim([0, 100])
         self.axes.grid(False)
-        # self.fig.set_figwidth(3)
+        self.fig.set_figwidth(3)
         self.axes.set_ylabel("Residual/Fitness [mm] / [1/100°]")
 
     def _plot_timewise(self, plot_call):
@@ -195,7 +196,7 @@ class PlotOdom:
 
         fig = None
         if axes is None:
-            fig, axes = plt.subplots(2,1, constrained_layout=True, num=f"Odometry {capfirst(self.name)}")
+            fig, axes = plt.subplots(2,1, constrained_layout=True, num=f"Odometry {capfirst(self.name)}", sharex=True)
 
         axes[0].scatter(x[0], y[0], s=50, color='g', marker='x') # start
         axes[0].scatter(x[-1], y[-1], s=50, color='r', marker='x') # end
@@ -203,7 +204,7 @@ class PlotOdom:
         # axes[0].set_aspect('equal', adjustable='box')
         # axes[0].set_aspect('equal')
         axes[0].axis('equal')
-        axes[0].set_xlabel('X [m]')
+        # axes[0].set_xlabel('X [m]')
         axes[0].set_ylabel('Y [m]')
         axes[0].legend()
 
@@ -224,11 +225,59 @@ class PlotOdom:
             return axes
         else:
             return fig, axes
+        
+    def plot_odometry_2D_timewise(self, axes=None, arg='', label='', **kwargs):
+        # 2D plot of egomotion path
+        c = self.positions
+        if arg == "origo":
+            x = [pt[0]-c[0][0] for pt in c]
+            y = [pt[1]-c[0][1] for pt in c]
+            z = [pt[2]-c[0][2] for pt in c]
+        elif arg == "end":
+            x = [pt[0]-c[-1][0] for pt in c]
+            y = [pt[1]-c[-1][1] for pt in c]
+            z = [pt[2]-c[-1][2] for pt in c]
+        elif arg.lower() == "kitti":
+            x = [pt[2] for pt in c]
+            y = [-pt[0] for pt in c]
+            z = [-pt[1] for pt in c]
+        else:
+            x = [pt[0] for pt in c]
+            y = [pt[1] for pt in c]
+            z = [pt[2] for pt in c]
+
+        fig = None
+        if axes is None:
+            fig, axes = plt.subplots(3,1, constrained_layout=True, num=f"Timewise Odometry {capfirst(self.name)}", sharex=True)
+
+        axes[0].plot(self.time, x, label=label, **kwargs)
+        # axes[0].axis('equal')
+        # axes[0].set_xlabel('Time [s]')
+        axes[0].set_ylabel('X [m]')
+
+        axes[1].plot(self.time, y, label=label, **kwargs)
+        # axes[1].axis('equal')
+        # axes[1].set_xlabel('Time [s]')
+        axes[1].set_ylabel('Y [m]')
+
+        axes[2].plot(self.time, z, label=label, **kwargs)
+        # axes[2].axis('equal')
+        axes[2].set_xlabel('Time [s]')
+        axes[2].set_ylabel('Z [m]')
+
+        # axes[0].set_title('X')
+        # axes[1].set_title('Y')
+        # axes[2].set_title('Z, elevation')
+
+        if (fig is None):
+            return axes
+        else:
+            return fig, axes
 
 
-    def plot_odometry_colorbar_2D(odometry, c_values, fig, ax=None, arg='', cmap='summer_r', plane='xy'):
+    def plot_odometry_colorbar_2D(self, c_values, ax:plt.Axes=None, arg='', cmap='plasma', plane='xy',lw=3, cbar_label='', cbar_unit=''):
         # 3d plot of egomotion path - OBS. Z and Y axis are switched, but labelled correctly in plot
-        c = odometry[:len(c_values), :]
+        c = self.positions[:len(c_values), :]
         if arg.lower() == "origo":
             x = [pt[0]-c[0][0] for pt in c]
             y = [-(pt[1]-c[0][1]) for pt in c]
@@ -261,7 +310,7 @@ class PlotOdom:
         lc = LineCollection(segments, cmap=cmap, norm=norm, antialiaseds=True)
         # Set the values used for colormapping
         lc.set_array(c_values)
-        lc.set_linewidth(7)
+        lc.set_linewidth(lw)
         line = ax.add_collection(lc)
         # fig.colorbar(line, ax=ax)
 
@@ -270,15 +319,22 @@ class PlotOdom:
 
 
         # cax = fig.add_axes([0.27, 0.8, 0.5, 0.05])
-        fig.colorbar(line, ax=ax)
+        cbar = self.fig.colorbar(line, ax=ax,aspect=10)
+        cbar.set_label(cbar_unit, rotation=270, labelpad=15)
+        # cbar.ax.yaxis.set_label_position('right')
+        cbar.ax.tick_params(direction="out",labelsize=8) 
+        cbar.ax.yaxis.set_ticks_position('left')
+        cbar.ax.set_title(cbar_label, fontsize=8)
+
 
         ax.set_xlabel('X [m]')
         ax.set_ylabel('Y [m]')
         # ax.set_zlabel('Y [m] - Height')    
-        ax.axis('equal')
+        # ax.axis('equal')
         # set_axes_equal(ax)
 
         # plt.show()
+        return self.fig, ax
 
 
 class PlotKalman(PlotOdom):
