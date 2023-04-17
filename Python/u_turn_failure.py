@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 import os
 
 dir_data = os.path.realpath("data")
-data_set_1 = "lobby_01_failure"
+# data_set_1 = "lobby_01_failure"
+data_set_1 = "328_failure"
 # data_set_2 = "lobby_01"
 
 Plotter1 = PlotOdom(name=data_set_1)

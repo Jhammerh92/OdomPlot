@@ -16,23 +16,35 @@ def capfirst(s:str):
     return s[:1].upper() + s[1:]
 
 class PlotOdom:
-    def __init__(self, abs_csv_path:os.PathLike=None, name:str=None) -> None:
+    def __init__(self, abs_csv_path:os.PathLike=None, name:str=None, save_plots:bool=False) -> None:
         if abs_csv_path is None:
             abs_csv_path = os.path.join("data",name + "_run_data.csv")
+            self.plot_name = name
             self.name = capfirst(name.replace('_', ' '))
         assert os.path.isfile(abs_csv_path), f"path does not exist: {abs_csv_path}"
 
         self.path = abs_csv_path
         self.data = np.genfromtxt(abs_csv_path, dtype=float, delimiter=',', names=True, skip_header=31)
 
+        self.plot_dir = ""
+        self.save_plots = save_plots
+        self.all_opened_figs = []
 
         self.headers = self.data.dtype.names
         for header in self.headers:
             setattr(self, header, self.data[header])
+
+
+
+
         # self.x = self.data['x']
         self.positions = np.c_[self.x, self.y, self.z]
 
         self.residual_norm = np.sqrt(np.square( self.residual_x) + np.square(self.residual_y) + np.square(self.residual_z))
+
+        self.translation = np.sqrt(np.square(self.vx) + np.square(self.vy) + np.square(self.vz)) / 0.1
+
+        self.residual_norm_normalised = self.residual_norm/self.translation
         # self.residual_qnorm = np.sqrt(np.square(1- np.abs(self.residual_qw)) + np.square( self.residual_qx) + np.square(self.residual_qy) + np.square(self.residual_qz))
         self.residual_qnorm = (np.sqrt( np.square( self.residual_qx) + np.square(self.residual_qy) + np.square(self.residual_qz)))
         
@@ -44,6 +56,7 @@ class PlotOdom:
         plt.rcParams['font.size'] = 10
         plt.rcParams['axes.grid'] = True
         plt.rcParams['lines.linewidth'] = 1.0
+        plt.rcParams['lines.color'] = "black"
         plt.rcParams['figure.dpi'] = 150
 
         print(plt.rcParams)
@@ -54,60 +67,125 @@ class PlotOdom:
         # plt.plot(self.x, self.fitness)
         # plt.plot( self.x - self.residual_x, self.y - self.residual_y)
 
-    def plot_velocity(self, axes=None):
-        if axes is None:
-            fig, axes = plt.subplots(1,1, constrained_layout=True)
-        axes.plot( self.time, self.vx,label="Velocity x")
-        axes.plot( self.time, self.vy,label="Velocity y")
-        axes.plot( self.time, self.vz,label="Velocity z")
-        axes.legend()
+    def plot_velocity(self, ax=None, label="_fill"):
+        self.label = label
+        return self._general_plot_handle(self._plot_velocity, timewise=True, ax=ax)
 
-        return axes
+    def _plot_velocity(self, axes=None):
+        # if axes is None:
+        #     fig, axes = plt.subplots(1,1, constrained_layout=True, num=" velocity")
+        # axes.legend()
+        num = "LOAM velocity"
+        if not isinstance(self.axes, np.ndarray):
+            self.fig, self.axes = plt.subplots(3,1, num=num)
+        elif len(self.axes) != 3:
+            self.fig, self.axes = plt.subplots(3,1, num=num)
+        ylim = [np.inf,-np.inf ]
+        for ax, d, a in zip(self.axes, [self.vx, self.vy, self.vz], ["x", "y", "z"]):
+            ax.plot( self.time, d, label=self.label)
+            ax.set_ylabel("$V$ $[m/s]$ - " + a)
+            _ylim = ax.get_ylim()
+            if _ylim[0] < ylim[0]:
+                ylim[0] = _ylim[0]
+            if _ylim[1] > ylim[1]:
+                ylim[1] = _ylim[1]
+        for ax in self.axes:
+            ax.set_ylim(ylim)
 
-    def plot_observer_velocity(self, axes=None):
-        if axes is None:
-            fig, axes = plt.subplots(1,1, constrained_layout=True)
-        axes.plot( self.time, self.obs_vx,label="Velocity x")
-        axes.plot( self.time, self.obs_vy,label="Velocity y")
-        axes.plot( self.time, self.obs_vz,label="Velocity z")
-        axes.legend()
+        return self.axes
 
-        return axes
 
-    def plot_translation_cov(self):
-        plt.figure()
-        plt.plot( self.time, self.cov_x,label="Translation Covariance x")
-        plt.plot( self.time, self.cov_y,label="Translation Covariance y")
-        plt.plot( self.time, self.cov_z,label="Translation Covariance z")
-        plt.legend()
+    def plot_observer_velocity(self, ax=None, label="_fill"):
+        self.label = label
+        return self._general_plot_handle(self._plot_observer_velocity, timewise=True, ax=ax)
+
+    def _plot_observer_velocity(self, axes=None):
+        num = "Observer velocity"
+        if not isinstance(self.axes, np.ndarray):
+            self.fig, self.axes = plt.subplots(3,1, num=num)
+        elif len(self.axes) != 3:
+            self.fig, self.axes = plt.subplots(3,1, num=num)
+
+        for ax, d, a in zip(self.axes, [self.obs_vx, self.obs_vy, self.obs_vz], ["x", "y", "z"]):
+            ax.plot( self.time, d, label=self.label)
+            ax.set_ylabel("$V$ $[m/s]$ - " + a)
+
+        return self.axes
+
+
+    def plot_translation_cov(self, ax=None):
+        return self._general_plot_handle(self._plot_translation_cov, timewise=True,ax=ax)
+
+    def _plot_translation_cov(self):
+        self.fig, self.axes = plt.subplots(num="Covariance")
+        self.axes.plot( self.time, self.cov_x,label="x")
+        self.axes.plot( self.time, self.cov_y,label="y")
+        self.axes.plot( self.time, self.cov_z,label="z")
+        self.axes.set_title("Translation Covariance")
+        self.axes.set_ylabel("$Covariance$ $[mm^2]$")
+        self.axes.legend()
+
+        self.all_opened_figs.append(self.fig)
 
     def _plot_acc_bias(self):
-        self.axes.plot( self.time, self.bias_acc_x,label="Acc Bias x")
-        self.axes.plot( self.time, self.bias_acc_y,label="Acc Bias y")
-        self.axes.plot( self.time, self.bias_acc_z,label="Acc Bias z")
-        self.axes.set_ylabel("$b_a$ $[m/s²]$")
-        # self.axes.legend()
+        num = "Acc bias"
+        if not isinstance(self.axes, np.ndarray):
+            self.fig, self.axes = plt.subplots(3,1, num=num,sharex=True)
+        elif len(self.axes) != 3:
+            self.fig, self.axes = plt.subplots(3,1, num=num,sharex=True)
+        ylim = [np.inf,-np.inf ]
+        for ax, d, a in zip(self.axes, [self.bias_acc_x, self.bias_acc_y, self.bias_acc_z], ["x", "y", "z"]):
+            ax.plot( self.time, d, label="_")
+            ax.set_ylabel("$b_a$ $[m/s²]$ - " + a)
+            _ylim = ax.get_ylim()
+            if _ylim[0] < ylim[0]:
+                ylim[0] = _ylim[0]
+            if _ylim[1] > ylim[1]:
+                ylim[1] = _ylim[1]
+        for ax in self.axes:
+            ax.set_ylim(ylim)
+
+
+        return self.axes
 
     def plot_acc_bias(self, ax=None):
-        self._general_plot_handle(self._plot_acc_bias, timewise=True,ax=ax)
+        return self._general_plot_handle(self._plot_acc_bias, timewise=True,ax=ax)
 
 
     def _plot_ang_bias(self):
-        self.axes.plot( self.time, self.bias_ang_x,label="Ang Bias x")
-        self.axes.plot( self.time, self.bias_ang_y,label="Ang Bias y")
-        self.axes.plot( self.time, self.bias_ang_z,label="Ang Bias z")
-        self.axes.set_ylabel("$b_g$ $[rad/s]$")
+        num = "Gyro bias"
+        if not isinstance(self.axes, np.ndarray):
+            self.fig, self.axes = plt.subplots(3,1, num=num,sharex=True)
+        elif len(self.axes) != 3:
+            self.fig, self.axes = plt.subplots(3,1, num=num,sharex=True)
+
+        ylim = [np.inf,-np.inf ]
+        for ax, d, a in zip(self.axes, [self.bias_ang_x, self.bias_ang_y, self.bias_ang_z], ["x - Roll", "y - Pitch", "z - Yaw"]):
+            ax.plot( self.time, d, label="_")
+            ax.set_ylabel("$b_g$ $[rad/s]$ - " + a)
+            _ylim = ax.get_ylim()
+            if _ylim[0] < ylim[0]:
+                ylim[0] = _ylim[0]
+            if _ylim[1] > ylim[1]:
+                ylim[1] = _ylim[1]
+        for ax in self.axes:
+            ax.set_ylim(ylim)
+
+        return self.axes
         
 
     def plot_ang_bias(self, ax=None):
-        self._general_plot_handle( self._plot_ang_bias, timewise=True, ax=ax)
+        return self._general_plot_handle( self._plot_ang_bias, timewise=True, ax=ax)
 
     def plot_fitness(self, ax=None):
-        self._general_plot_handle(self._plot_fitness, timewise=True,ax=ax)
+        return self._general_plot_handle(self._plot_fitness, timewise=True,ax=ax)
 
     def _plot_fitness(self):
         n = 7
-        self.axes.plot(self.time,  self.residual_norm*1e3, label="Linear Residual Norm", marker='.', ls='-')
+        if self.axes is None:
+            self.fig, self.axes = plt.subplots(num="Fitness Metrics")
+        # self.axes.plot(self.time,  self.residual_norm*1e3, label="Linear Residual Norm", marker='.', ls='-')
+        self.axes.plot(self.time,  self.residual_norm_normalised*1e3, label="Linear Residual Norm Normalised [unitless]", marker='.', ls='-')
         self.axes.plot(self.time,  np.rad2deg(self.residual_qnorm)*1e2, label="Rotational Residual Norm", marker='.', ls='-')
         self.axes.plot(self.time,  self.fitness*1e3, label="Scan Match Fitness", marker='.',  ls='-')
         self.axes.set_prop_cycle(None)
@@ -115,18 +193,22 @@ class PlotOdom:
         # self.axes.plot(self.time[:-(n-1)],  moving_average(self.residual_qnorm *1e2, n), label="Rotational Residual Norm")
         # self.axes.plot(self.time[:-(n-1)],  moving_average(self.fitness*1e3, n), label="Scan Match Fitness")
         # self.axes.set_xlabel("Time [s]")
+        self.axes.set_yscale('log')
         self.axes.set_ylabel("Residual/Fitness [mm] / [1/100°]")
+        self.axes.set_title("Timewise Log Fitness Metrics")
 
 
     def plot_fitness_boxplot(self, ax=None):
-        self._general_plot_handle(self._plot_fitness_boxplot, timewise=False, ax=ax)
+        return self._general_plot_handle(self._plot_fitness_boxplot, timewise=False, ax=ax)
         
 
     def custom_boxplot(self, ax:plt.Axes, data, index=0, c='C0'):
         data_list = [data if i==index else np.array([np.nan]) for i in range(index+1)]
-
-        ax.scatter(np.random.normal(index+1, 0.1, len(data)), data, marker='.', s=2.5, alpha=0.5, c=f"C{index}")
-        ax.boxplot(data_list, showfliers = False, widths=(0.9), vert=True)
+        if ax is None:
+            self.fig, self.axes = plt.subplots(num="Fitness Boxplots")
+        self.axes.scatter(np.random.normal(index+1, 0.1, len(data)), data, marker='.', s=2.5, alpha=0.5, c=f"C{index}")
+        self.axes.boxplot(data_list, showfliers = False, widths=(0.9), vert=True)
+        return self.axes
 
     def _plot_fitness_boxplot(self):
         data = [self.residual_norm*1e3, np.rad2deg(self.residual_qnorm) *100, self.fitness*1e3]
@@ -140,19 +222,23 @@ class PlotOdom:
         self.axes.grid(False)
         self.fig.set_figwidth(3)
         self.axes.set_ylabel("Residual/Fitness [mm] / [1/100°]")
+        self.axes.set_title("Boxplot Fitness Metrics")
 
     def _plot_timewise(self, plot_call):
         plot_call()
-        self.axes.set_xlabel("Time [s]")
+        try:
+            self.axes.set_xlabel("Time [s]")
+        except: 
+            self.axes[-1].set_xlabel("Time [s]")
 
     # def _general_plot_handle(self, fig:plt.Figure=None, ax:plt.Axes, plot_call, timewise=True):
     def _general_plot_handle(self, plot_call, timewise=True, ax:plt.Axes=None):
-        if ax is None:
-            self.fig, self.axes = plt.subplots()
+        # if ax is None:
+        #     self.fig, self.axes = plt.subplots()
             
-        else:
+        # else:
             # if not fig.axes:
-            self.axes = ax
+        self.axes = ax
             # self.fig = fig
 
         if timewise:
@@ -160,20 +246,33 @@ class PlotOdom:
         else:
             plot_call()
 
-        if isinstance(self.axes, list):
+        if isinstance(self.axes, np.ndarray):
             for ax in self.axes:
                 ax.legend()
+                # ax.set_title(self.name)
         else:
+            self.axes.get_title()
+            self.axes.set_title(f"{self.axes.get_title()} - {self.name}")
             self.axes.legend()
 
+        self.all_opened_figs.append(self.fig)
 
-        self.axes.set_title(self.name)
+        return self.axes
+    
+    def save_figs(self):
+        if self.save_plots:
+            self.plot_dir = os.path.join("plots", self.name)
+            if not os.path.isdir(self.plot_dir):
+                os.makedirs(self.plot_dir)
+
+        for fig_ in self.all_opened_figs:
+            fig_.savefig(os.path.join(self.plot_dir, "{}.pdf".format(fig_.get_label() )) )
+            # fig_.savefig(os.path.join(dir, "{}_{}.pdf".format(situs[situ], fig_.get_label() )) )
+
+
 
 
     
-
-
-
     def plot_odometry_2D(self, axes=None, arg='', label='', **kwargs):
         # 2D plot of egomotion path
         c = self.positions
@@ -194,38 +293,57 @@ class PlotOdom:
             y = [pt[1] for pt in c]
             z = [pt[2] for pt in c]
 
-        fig = None
+        layout = (2,1)
+        # if (max(x)-min(x)) < (max(y)-min(y)):
+            # layout = (1,2)
+        
         if axes is None:
-            fig, axes = plt.subplots(2,1, constrained_layout=True, num=f"Odometry {capfirst(self.name)}", sharex=True)
+            fig, axes = plt.subplots(*layout, constrained_layout=True, num=f"Odometry", sharex=False, sharey=False)
 
         axes[0].scatter(x[0], y[0], s=50, color='g', marker='x') # start
         axes[0].scatter(x[-1], y[-1], s=50, color='r', marker='x') # end
         axes[0].plot(x, y, label=label, **kwargs)
         # axes[0].set_aspect('equal', adjustable='box')
-        # axes[0].set_aspect('equal')
-        axes[0].axis('equal')
+        axes[0].set_aspect('equal')
+        # axes[0].axis('equal')
         # axes[0].set_xlabel('X [m]')
         axes[0].set_ylabel('Y [m]')
         axes[0].legend()
 
+        ylim = axes[0].get_ylim()
+        ydiff = ylim[1] - ylim[0]
+        p = 0.25
+        axes[0].set_ylim([ylim[0]- ydiff*p, ylim[1]+ydiff*p])
+
         axes[1].scatter(x[0], z[0], s=50, color='g', marker='x') # start
         axes[1].scatter(x[-1], z[-1], s=50, color='r', marker='x') # end
         axes[1].plot(x, z, **kwargs)
-        axes[1].axis('equal')
-        # axes[1].set_aspect('equal', adjustable='box')
+        # axes[1].axis('equal')
+        axes[1].set_aspect('equal', adjustable='box')
         # axes[1].set_aspect('equal')
         axes[1].set_xlabel('X [m]')
         axes[1].set_ylabel('Z [m]')
+
+        ylim = axes[1].get_ylim()
+        ydiff = ylim[1] - ylim[0]
+        p = 4
+        axes[1].set_ylim([ylim[0]- ydiff*p, ylim[1]+ydiff*p])
 
 
         axes[0].set_title('XY-plane')
         axes[1].set_title('XZ-plane, elevation')
 
-        if (fig is None):
-            return axes
-        else:
-            return fig, axes
-        
+        self.all_opened_figs.append(fig)
+
+        # if (fig is None):
+        #     return axes
+        # else:
+        return fig, axes
+
+
+    # def plot_odometry_2D_timewise(self, axes=None, arg='', label='', **kwargs):
+    #     self._general_plot_handle(self._plot_odometry_2D_timewise, False, ax=axes, )
+
     def plot_odometry_2D_timewise(self, axes=None, arg='', label='', **kwargs):
         # 2D plot of egomotion path
         c = self.positions
@@ -246,9 +364,9 @@ class PlotOdom:
             y = [pt[1] for pt in c]
             z = [pt[2] for pt in c]
 
-        fig = None
+        # fig = None
         if axes is None:
-            fig, axes = plt.subplots(3,1, constrained_layout=True, num=f"Timewise Odometry {capfirst(self.name)}", sharex=True)
+            fig, axes = plt.subplots(3,1, constrained_layout=True, num=f"Timewise Odometry", sharex=True)
 
         axes[0].plot(self.time, x, label=label, **kwargs)
         # axes[0].axis('equal')
@@ -269,10 +387,13 @@ class PlotOdom:
         # axes[1].set_title('Y')
         # axes[2].set_title('Z, elevation')
 
-        if (fig is None):
-            return axes
-        else:
-            return fig, axes
+        self.all_opened_figs.append(fig)
+
+        # if (fig is None):
+        #     return axes
+        # else:
+        return fig, axes
+        
 
 
     def plot_odometry_colorbar_2D(self, c_values, ax:plt.Axes=None, arg='', cmap='plasma', plane='xy',lw=3, cbar_label='', cbar_unit=''):
