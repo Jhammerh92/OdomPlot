@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 dir_data = os.path.realpath("data")
-data_set_1 = "lobby_01"
+data_set_1 = "straight_with_features_full_gain"
 # data_set_2 = "lobby_01"
 
 Plotter1 = PlotOdom(name=data_set_1, save_plots=True)

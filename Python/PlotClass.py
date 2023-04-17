@@ -222,7 +222,7 @@ class PlotOdom:
         self.axes.grid(False)
         self.fig.set_figwidth(3)
         self.axes.set_ylabel("Residual/Fitness [mm] / [1/100°]")
-        self.axes.set_title("Boxplot Fitness Metrics")
+        self.axes.set_title("Fitness Metrics")
 
     def _plot_timewise(self, plot_call):
         plot_call()
