@@ -4,17 +4,17 @@ import os
 import numpy as np
 
 dir_data = os.path.realpath("data")
-data_set_1 = "straight_with_features_full_gain"
+data_set_1 = ""
 # data_set_2 = "lobby_01"
 
-Plotter1 = PlotOdom(name=data_set_1, save_plots=True)
+Plotter1 = PlotOdom(name=data_set_1, save_plots=False)
 # Plotter2 = PlotOdom(name=data_set_2)
 
 Plotter1.plot_acc_bias()
 Plotter1.plot_ang_bias()
 
 # fig, axes = plt.subplots(1,2, num="Boxplots", sharey=True)
-Plotter1.plot_fitness_boxplot()
+# Plotter1.plot_fitness_boxplot()
 Plotter1.plot_fitness()
 
 vel_axes = Plotter1.plot_velocity(label="LO")
