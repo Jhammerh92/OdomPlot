@@ -15,12 +15,20 @@ def moving_average(a, n=3) :
 def capfirst(s:str):
     return s[:1].upper() + s[1:]
 
+
+
 class PlotOdom:
     def __init__(self, abs_csv_path:os.PathLike=None, name:str=None, save_plots:bool=False) -> None:
         if abs_csv_path is None:
-            abs_csv_path = os.path.join("data",name + "_run_data.csv")
+            if name is None or name == "":
+                abs_csv_path = os.path.join("data","run_data.csv")
+                name = "recent"
+            else:
+                abs_csv_path = os.path.join("data",name + "_run_data.csv")
             self.plot_name = name
             self.name = capfirst(name.replace('_', ' '))
+        else:
+            self.name = "abs"
         assert os.path.isfile(abs_csv_path), f"path does not exist: {abs_csv_path}"
 
         self.path = abs_csv_path
