@@ -50,7 +50,7 @@ class PlotOdom:
 
         self.residual_norm = np.sqrt(np.square( self.residual_x) + np.square(self.residual_y) + np.square(self.residual_z))
 
-        self.translation = np.sqrt(np.square(self.vx) + np.square(self.vy) + np.square(self.vz)) / 0.1
+        self.translation = np.sqrt(np.square(self.vx) + np.square(self.vy) + np.square(self.vz)) * 0.1
 
         self.residual_norm_normalised = self.residual_norm/self.translation
         # self.residual_qnorm = np.sqrt(np.square(1- np.abs(self.residual_qw)) + np.square( self.residual_qx) + np.square(self.residual_qy) + np.square(self.residual_qz))
@@ -67,7 +67,7 @@ class PlotOdom:
         plt.rcParams['lines.color'] = "black"
         plt.rcParams['figure.dpi'] = 150
 
-        print(plt.rcParams)
+        # print(plt.rcParams)
         
     def plot_odometry(self):
         plt.figure()
@@ -130,7 +130,7 @@ class PlotOdom:
         self.axes.plot( self.time, self.cov_y,label="y")
         self.axes.plot( self.time, self.cov_z,label="z")
         self.axes.set_title("Translation Covariance")
-        self.axes.set_ylabel("$Covariance$ $[mm^2]$")
+        self.axes.set_ylabel("$Covariance$ $[m^2]$")
         self.axes.legend()
 
         self.all_opened_figs.append(self.fig)
@@ -190,19 +190,20 @@ class PlotOdom:
 
     def _plot_fitness(self):
         n = 7
+        alpha = 1
         if self.axes is None:
             self.fig, self.axes = plt.subplots(num="Fitness Metrics")
         # self.axes.plot(self.time,  self.residual_norm*1e3, label="Linear Residual Norm", marker='.', ls='-')
-        self.axes.plot(self.time,  self.residual_norm_normalised*1e3, label="Linear Residual Norm Normalised [unitless]", marker='.', ls='-')
-        self.axes.plot(self.time,  np.rad2deg(self.residual_qnorm)*1e2, label="Rotational Residual Norm", marker='.', ls='-')
-        self.axes.plot(self.time,  self.fitness*1e3, label="Scan Match Fitness", marker='.',  ls='-')
+        self.axes.plot(self.time,  self.residual_norm_normalised,alpha=alpha, label="Linear Residual Norm Normalised", marker='.',markersize=5, ls='-', lw= 1)
+        self.axes.plot(self.time,  np.rad2deg(self.residual_qnorm),alpha=alpha, label="Rotational Residual Norm"                , marker='.',markersize=5, ls='-', lw= 1)
+        self.axes.plot(self.time,  self.fitness, alpha=alpha, label="Scan Match Fitness"                                        , marker='.',markersize=5, ls='-', lw= 1)
         self.axes.set_prop_cycle(None)
         # self.axes.plot(self.time[:-(n-1)],  moving_average(self.residual_norm*1e3 , n), label="Linear Residual Norm", lw = 2.0)
         # self.axes.plot(self.time[:-(n-1)],  moving_average(self.residual_qnorm *1e2, n), label="Rotational Residual Norm")
         # self.axes.plot(self.time[:-(n-1)],  moving_average(self.fitness*1e3, n), label="Scan Match Fitness")
         # self.axes.set_xlabel("Time [s]")
         self.axes.set_yscale('log')
-        self.axes.set_ylabel("Residual/Fitness [mm] / [1/100°]")
+        self.axes.set_ylabel("Residual/Fitness [m/m] / [°]/ [m]")
         self.axes.set_title("Timewise Log Fitness Metrics")
 
 
@@ -219,17 +220,17 @@ class PlotOdom:
         return self.axes
 
     def _plot_fitness_boxplot(self):
-        data = [self.residual_norm*1e3, np.rad2deg(self.residual_qnorm) *100, self.fitness*1e3]
+        data = [self.residual_norm_normalised, np.rad2deg(self.residual_qnorm), self.fitness*1e1]
 
         for i, d in enumerate(data):
             self.custom_boxplot(self.axes, d, i)
 
-        self.axes.set_xticks([1,2,3],['P Norm', 'q Norm', 'Fitness'])
-        self.axes.set_ylim([0, 75])
+        self.axes.set_xticks([1,2,3],['$||\Delta t||/t$ [m/m]', '$||q||$ [°]', 'Fitness [dm]'])
+        self.axes.set_ylim([0, 2])
         # self.axes.set_xlim([0, 100])
         self.axes.grid(False)
         self.fig.set_figwidth(3)
-        self.axes.set_ylabel("Residual/Fitness [mm] / [1/100°]")
+        self.axes.set_ylabel("Residual/Fitness  [m/m] / [°] / [dm]")
         self.axes.set_title("Fitness Metrics")
 
     def _plot_timewise(self, plot_call):
@@ -267,16 +268,22 @@ class PlotOdom:
 
         return self.axes
     
-    def save_figs(self):
-        if self.save_plots:
+    def save_figs(self, other_path=None):
+        if not self.save_plots:
+            return
+        
+        if other_path is None:
             self.plot_dir = os.path.join("plots", self.name)
-            if not os.path.isdir(self.plot_dir):
-                os.makedirs(self.plot_dir)
+        else:
+            self.plot_dir = os.path.join(other_path, self.name)
+        if not os.path.isdir(self.plot_dir):
+            os.makedirs(self.plot_dir)
 
         for fig_ in self.all_opened_figs:
             fig_.savefig(os.path.join(self.plot_dir, "{}.pdf".format(fig_.get_label() )) )
             # fig_.savefig(os.path.join(dir, "{}_{}.pdf".format(situs[situ], fig_.get_label() )) )
 
+        print(f"Saved all figs of data set: '{self.name}'\nSaved to {self.plot_dir}")
 
 
 
