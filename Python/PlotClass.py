@@ -85,9 +85,9 @@ class PlotOdom:
         # axes.legend()
         num = "LOAM velocity"
         if not isinstance(self.axes, np.ndarray):
-            self.fig, self.axes = plt.subplots(3,1, num=num)
+            self.fig, self.axes = plt.subplots(3,1, num=num, sharex=True)
         elif len(self.axes) != 3:
-            self.fig, self.axes = plt.subplots(3,1, num=num)
+            self.fig, self.axes = plt.subplots(3,1, num=num, sharex=True)
         ylim = [np.inf,-np.inf ]
         for ax, d, a in zip(self.axes, [self.vx, self.vy, self.vz], ["x", "y", "z"]):
             ax.plot( self.time, d, label=self.label)
@@ -110,9 +110,9 @@ class PlotOdom:
     def _plot_observer_velocity(self, axes=None):
         num = "Observer velocity"
         if not isinstance(self.axes, np.ndarray):
-            self.fig, self.axes = plt.subplots(3,1, num=num)
+            self.fig, self.axes = plt.subplots(3,1, num=num, sharex=True)
         elif len(self.axes) != 3:
-            self.fig, self.axes = plt.subplots(3,1, num=num)
+            self.fig, self.axes = plt.subplots(3,1, num=num, sharex=True)
 
         for ax, d, a in zip(self.axes, [self.obs_vx, self.obs_vy, self.obs_vz], ["x", "y", "z"]):
             ax.plot( self.time, d, label=self.label)

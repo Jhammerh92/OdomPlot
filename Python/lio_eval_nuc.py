@@ -18,7 +18,7 @@ Plotter1.plot_acc_bias()
 Plotter1.plot_ang_bias()
 
 # fig, axes = plt.subplots(1,2, num="Boxplots", sharey=True)
-Plotter1.plot_fitness_boxplot()
+# Plotter1.plot_fitness_boxplot()
 Plotter1.plot_fitness()
 
 vel_axes = Plotter1.plot_velocity(label="LO")
