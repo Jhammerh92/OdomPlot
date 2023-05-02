@@ -11,7 +11,7 @@ abs_path = "/home/slamnuc/temp_saved_odometry_data/odometry"
 files = sorted(os.listdir(abs_path))
 print(files)
 file_path = os.path.join(abs_path,files[-1])
-file_path = os.path.join(abs_path, "20230428-173134_run_data.csv")
+file_path = os.path.join(abs_path, "20230502-172710_run_data.csv")
 Plotter1 = PlotOdom(abs_csv_path=file_path,  name=data_set_1, save_plots=False)
 # Plotter2 = PlotOdom(name=data_set_2)
 
