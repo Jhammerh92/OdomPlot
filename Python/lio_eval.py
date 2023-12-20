@@ -5,13 +5,14 @@ import numpy as np
 
 
 dir_data = os.path.realpath("data")
-data_set_1 = ""
-# data_set_2 = "lobby_01"
-abs_path = "/home/slamnuc/temp_saved_odometry_data/odometry"
-files = sorted(os.listdir(abs_path))
-print(files)
-file_path = os.path.join(abs_path,files[-1])
-Plotter1 = PlotOdom(abs_csv_path=file_path,  name=data_set_1, save_plots=False)
+# data_set_1 = ""
+data_set_1 = "parking_lot_full"
+# abs_path = "/home/slamnuc/temp_saved_odometry_data/odometry"
+# files = sorted(os.listdir(abs_path))
+# print(files)
+# file_path = os.path.join(abs_path,files[-1])
+Plotter1 = PlotOdom(data_path = dir_data, name=data_set_1, save_plots=False)
+# Plotter1 = PlotOdom(abs_csv_path=file_path,  name=data_set_1, save_plots=False)
 # Plotter2 = PlotOdom(name=data_set_2)
 
 Plotter1.plot_acc_bias()
@@ -39,7 +40,7 @@ fig,axes = Plotter1.plot_odometry_2D_timewise(label="P2Pl")
 # Plotter1.plot_odometry_colorbar_2D(c_values=np.log(Plotter1.residual_norm),ax=axes[1],cbar_label="Translation Residual     _", cbar_unit='[log(m)]')
 # Plotter1.plot_odometry_colorbar_2D(c_values=np.log(Plotter1.residual_qnorm),ax=axes[2],cbar_label="Rotational Residual     _", cbar_unit='[log(a.u.)]')
 
-Plotter1.plot_odometry_colorbar_2D(c_values=Plotter1.time,ax=None,cbar_label="Time     _", cbar_unit='[s]')
+Plotter1.plot_odometry_colorbar_2D(c_values=Plotter1.time ,ax=None,cbar_label="Time     _", cbar_unit='[s]')
 # Plotter2.plot_odometry_2D(axes, label="NDT")
 # axes[0].legend([, "NDT"])
 

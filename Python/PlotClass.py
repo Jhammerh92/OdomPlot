@@ -18,17 +18,19 @@ def capfirst(s:str):
 
 
 class PlotOdom:
-    def __init__(self, abs_csv_path:os.PathLike=None, name:str=None, save_plots:bool=False) -> None:
-        if abs_csv_path is None:
+    def __init__(self, data_path:os.PathLike=None , name:str=None, save_plots:bool=False) -> None:
+        if data_path is None:
             if name is None or name == "":
                 abs_csv_path = os.path.join("data","run_data.csv")
                 name = "recent"
-            else:
-                abs_csv_path = os.path.join("data",name + "_run_data.csv")
-            self.plot_name = name
-            self.name = capfirst(name.replace('_', ' '))
         else:
-            self.name = "abs"
+            abs_csv_path = os.path.join(data_path, name + "_run_data.csv")
+
+        self.name = capfirst(name.replace('_', ' '))
+        self.plot_name = name
+
+
+
         assert os.path.isfile(abs_csv_path), f"path does not exist: {abs_csv_path}"
 
         self.path = abs_csv_path
