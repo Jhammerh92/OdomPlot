@@ -22,9 +22,10 @@ def rotate_to_x_axis(vector):
     if magnitude == 0:
         raise ValueError("Input vector has zero magnitude.")
     normalized_vector = vector / magnitude
+    x_vector = np.array([[1, 0]]).T
 
-    # Calculate the angle of rotation
-    angle = np.arctan2(normalized_vector[1], normalized_vector[0])
+    angle = np.arctan2(x_vector[1], x_vector[0]) - np.arctan2(normalized_vector[1], normalized_vector[0]).item()
+    angle = (angle + np.pi) % (2 * np.pi) - np.pi
 
     # Create the 2D rotation matrix
     rotation_matrix = np.array([[np.cos(angle), -np.sin(angle), 0],
@@ -32,6 +33,31 @@ def rotate_to_x_axis(vector):
                                 [0,             0,              1]])
     
     return rotation_matrix
+
+def rotate_to_y_axis(vector):
+    # Normalize the input vector
+    vector = np.array(vector)
+    magnitude = np.linalg.norm(vector)
+    if magnitude == 0:
+        raise ValueError("Input vector has zero magnitude.")
+    normalized_vector = vector / magnitude
+
+    # Calculate the angle of rotation
+    # angle = np.arctan2(normalized_vector[0], normalized_vector[1])
+    # angle = np.arccos(normalized_vector.dot(np.array([[0, 1]]).T)).item()
+
+    y_vector = np.array([[0, 1]]).T
+
+    angle = - np.arctan2(normalized_vector[0], normalized_vector[1]).item()
+    # angle = (angle + np.pi) % (2 * np.pi) - np.pi
+
+    # Create the 2D rotation matrix
+    rotation_matrix = np.array([[np.cos(angle), -np.sin(angle), 0],
+                                [np.sin(angle), np.cos(angle),  0],
+                                [0,             0,              1]])
+    
+    return rotation_matrix
+
 
 def rotate_to_nearest_x_axis(vector):
     # Normalize the input vector
@@ -55,6 +81,7 @@ def rotate_to_nearest_x_axis(vector):
                                 [0,             0,              1]])
     
     return rotation_matrix
+
 
 
 class PlotOdom:
@@ -115,18 +142,31 @@ class PlotOdom:
     def get_positions(self):
         return self.positions
 
-    def zero_initial_heading(self):
+    def zero_initial_heading(self, heading_length=2.0):
         length = 0.0
         i = 0
-        while length < 1.0:
+        while length < heading_length:
             i += 1
             initial_xy_heading_vector = self.positions[i,:2] - self.positions[0,:2]
             length = np.linalg.norm(initial_xy_heading_vector)
     
-        derotation_matrix = rotate_to_nearest_x_axis(initial_xy_heading_vector)
+        derotation_matrix = rotate_to_y_axis(initial_xy_heading_vector)
 
-        self.positions = self.positions @ derotation_matrix
+        self.rotate_positions(derotation_matrix)
+
+    def rotate_to_heading(self, gt_initial_heading):
+        self.zero_initial_heading()
+
+        rotation_matrix = np.array([[np.cos(gt_initial_heading), -np.sin(gt_initial_heading), 0],
+                                [np.sin(gt_initial_heading), np.cos(gt_initial_heading),  0],
+                                [0,             0,              1]])
+        
+        self.rotate_positions(rotation_matrix)
     
+    def rotate_positions(self, rotation_matrix, angle=None):
+        self.positions = self.positions @ rotation_matrix 
+        #TODO add x y and z is rewritten from the new positions
+
     def get_start_time(self):
         return self.start_time
     

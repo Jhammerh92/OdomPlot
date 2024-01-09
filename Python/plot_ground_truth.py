@@ -1,6 +1,29 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
 from PlotClass import rotate_to_nearest_x_axis, rotate_to_x_axis
+
+def plot_confidence_ellipses(ax, points, stds):
+    """
+    Draw ellipses with varying sizes for a set of points.
+
+    Parameters:
+    - points (array-like): Array of points in the form [[x1, y1], [x2, y2], ...].
+    - sizes (array-like): Array of sizes for each ellipse.
+
+    Returns:
+    - None (displays the plot).
+    """
+    # fig, ax = plt.subplots()
+    scale_factor = 2.0
+
+    for i, (point, size) in enumerate(zip(points, stds)):
+        ellipse = Ellipse(xy=point, width=size[0]*scale_factor, height=size[1]*scale_factor, edgecolor='none', facecolor='b', alpha=0.1)
+        # ellipse = Ellipse(xy=point, width=scale_factor, height=scale_factor, edgecolor='none', facecolor='b', alpha=0.3)
+        ax.add_patch(ellipse)
+
+        # # Annotate each ellipse with its index
+        # ax.annotate(str(i + 1), xy=point, color='r', ha='center', va='center', fontsize=8)
 
 
 class InertialExplorerFileHandler():
@@ -27,13 +50,18 @@ class InertialExplorerFileHandler():
 
         self.positions = np.c_[self.XLL, self.YLL, self.ZLL]
         self.positions -= self.positions[0,:]
+        
+        self.stds = np.c_[self.SDEast, self.SDNorth, self.SDHeight]
 
         
 
     def get_zeroed_positions(self):
         return self.positions - self.positions[0,:]
+    
+    def get_stds(self):
+        return self.stds
 
-    def zero_initial_heading(self):
+    def zero_initial_heading(self, heading_length=1.0):
         # initial_xy_heading = -self.Heading[0]
         # # Create the 2D rotation matrix
         # derotation_matrix = np.array([[np.cos(initial_xy_heading), -np.sin(initial_xy_heading), 0],
@@ -42,16 +70,23 @@ class InertialExplorerFileHandler():
     
         length = 0.0
         i = 0
-        while length < 1.0:
+        while length < heading_length:
             i += 1
             initial_xy_heading_vector = self.positions[i,:2] - self.positions[0,:2]
             length = np.linalg.norm(initial_xy_heading_vector)
     
-        derotation_matrix = rotate_to_nearest_x_axis(initial_xy_heading_vector)
+        derotation_matrix = rotate_to_x_axis(initial_xy_heading_vector)
 
         self.positions = self.positions @ derotation_matrix
 
-
+    def get_initial_heading(self, heading_at_length=2.0):
+        length = 0.0
+        i = 0
+        while length < heading_at_length:
+            i += 1
+            initial_xy_heading_vector = self.positions[i,:2] - self.positions[0,:2]
+            length = np.linalg.norm(initial_xy_heading_vector)
+        return self.Heading[i]
 
 
 
@@ -64,5 +99,6 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots()
     ax.plot(handler.XLL, handler.YLL)
+    ax.set_aspect('equal')
 
     plt.show()
