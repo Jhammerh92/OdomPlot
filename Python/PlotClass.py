@@ -15,10 +15,50 @@ def moving_average(a, n=3) :
 def capfirst(s:str):
     return s[:1].upper() + s[1:]
 
+def rotate_to_x_axis(vector):
+    # Normalize the input vector
+    vector = np.array(vector)
+    magnitude = np.linalg.norm(vector)
+    if magnitude == 0:
+        raise ValueError("Input vector has zero magnitude.")
+    normalized_vector = vector / magnitude
+
+    # Calculate the angle of rotation
+    angle = np.arctan2(normalized_vector[1], normalized_vector[0])
+
+    # Create the 2D rotation matrix
+    rotation_matrix = np.array([[np.cos(angle), -np.sin(angle), 0],
+                                [np.sin(angle), np.cos(angle),  0],
+                                [0,             0,              1]])
+    
+    return rotation_matrix
+
+def rotate_to_nearest_x_axis(vector):
+    # Normalize the input vector
+    vector = np.array(vector)
+    magnitude = np.linalg.norm(vector)
+    if magnitude == 0:
+        raise ValueError("Input vector has zero magnitude.")
+    normalized_vector = vector / magnitude
+
+    # Calculate the angle of rotation to the nearest x-axis
+    angle = np.arccos(normalized_vector.dot(np.array([[1, 0]]).T)).item()
+    if angle > np.pi/2.0 : angle = angle - np.pi
+    # angle_negative = -angle_positive if np.arcsin(normalized_vector[0].item()) >= 0 else angle_positive
+
+    # Choose the nearest x-axis direction
+    # angle = angle_negative if abs(angle_negative) < abs(angle_positive) else angle_positive
+
+    # Create the 2D rotation matrix
+    rotation_matrix = np.array([[np.cos(angle), -np.sin(angle), 0],
+                                [np.sin(angle), np.cos(angle),  0],
+                                [0,             0,              1]])
+    
+    return rotation_matrix
 
 
 class PlotOdom:
-    def __init__(self, data_path:os.PathLike=None , name:str=None, save_plots:bool=False) -> None:
+    def __init__(self, data_path:os.PathLike=None , name:str="", save_plots:bool=False) -> None:
         if data_path is None:
             if name is None or name == "":
                 abs_csv_path = os.path.join("data","run_data.csv")
@@ -44,7 +84,8 @@ class PlotOdom:
         for header in self.headers:
             setattr(self, header, self.data[header])
 
-
+        self.start_time = self.time[0]
+        self.end_time = self.time[-1]
 
 
         # self.x = self.data['x']
@@ -70,7 +111,28 @@ class PlotOdom:
         plt.rcParams['figure.dpi'] = 150
 
         # print(plt.rcParams)
-        
+
+    def get_positions(self):
+        return self.positions
+
+    def zero_initial_heading(self):
+        length = 0.0
+        i = 0
+        while length < 1.0:
+            i += 1
+            initial_xy_heading_vector = self.positions[i,:2] - self.positions[0,:2]
+            length = np.linalg.norm(initial_xy_heading_vector)
+    
+        derotation_matrix = rotate_to_nearest_x_axis(initial_xy_heading_vector)
+
+        self.positions = self.positions @ derotation_matrix
+    
+    def get_start_time(self):
+        return self.start_time
+    
+    def get_end_time(self):
+        return self.end_time
+
     def plot_odometry(self):
         plt.figure()
         plt.plot(self.x, self.y)
