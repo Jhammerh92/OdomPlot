@@ -86,19 +86,55 @@ def rotate_to_nearest_x_axis(vector):
 
 class PlotOdom:
     def __init__(self, data_path:os.PathLike=None , name:str="", save_plots:bool=False) -> None:
+        self.time = None
+        self.positions = None
+        self.x = None
+        self.y = None
+        self.z = None
+        self.cov_x = None
+        self.cov_y = None
+        self.cov_z = None
+        self.vx = None
+        self.vy = None
+        self.vz = None
+        self.residual_x = None
+        self.residual_y = None
+        self.residual_z = None
+        self.residual_qw = None
+        self.residual_qx = None
+        self.residual_qy = None
+        self.residual_qz = None
+        self.obs_vx = None
+        self.obs_vy = None
+        self.obs_vz = None
+        self.bias_acc_x = None
+        self.bias_acc_y = None
+        self.bias_acc_z = None
+        self.bias_ang_x = None
+        self.bias_ang_y = None
+        self.bias_ang_z = None
+        self.fitness = None
+        self.ex = None
+        self.ey = None
+        self.ez = None
+
+
         if data_path is None:
             if name is None or name == "":
-                abs_csv_path = os.path.join("data","run_data.csv")
+                abs_csv_path = os.path.join("data", "run_data.csv")
                 name = "recent"
         else:
+            if name is None:
+                Exception("need a name of data file")
+            name = name.removesuffix('_run_data.csv') # in case the suffix is there
             abs_csv_path = os.path.join(data_path, name + "_run_data.csv")
 
-        self.name = capfirst(name.replace('_', ' '))
+        self.name = capfirst(name.removesuffix('_run_data.csv').replace('_', ' '))
         self.plot_name = name
 
 
 
-        assert os.path.isfile(abs_csv_path), f"path does not exist: {abs_csv_path}"
+        assert os.path.isfile(abs_csv_path), f"file does not exist: {abs_csv_path}"
 
         self.path = abs_csv_path
         self.data = np.genfromtxt(abs_csv_path, dtype=float, delimiter=',', names=True, skip_header=31)
@@ -551,7 +587,7 @@ class PlotOdom:
 
         # ax.plot3D(x, z, y, label='positon')
         # lnWidth = [40 for i in range(len(speed))]
-        points = np.array([x, y]).T.reshape(-1, 1, 2)
+        points = np.array([x, y]).T.reshape((-1, 1, 2))
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
         norm = plt.Normalize(c_values.min(), c_values.max())
         lc = LineCollection(segments, cmap=cmap, norm=norm, antialiaseds=True)
