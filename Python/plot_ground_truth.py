@@ -53,10 +53,16 @@ class InertialExplorerFileHandler():
         
         self.stds = np.c_[self.SDEast, self.SDNorth, self.SDHeight]
 
+        diff = np.diff(self.positions, axis=0)
+        self.travelled_dist = np.r_[0.0, np.cumsum(np.linalg.norm(diff, axis=1))]
+
         
 
     def get_zeroed_positions(self):
         return self.positions - self.positions[0,:]
+    
+    def get_travelled_dist(self):
+        return self.travelled_dist
     
     def get_stds(self):
         return self.stds

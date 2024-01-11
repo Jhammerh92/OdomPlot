@@ -117,10 +117,13 @@ class PlotOdom:
 
         # self.x = self.data['x']
         self.positions = np.c_[self.x, self.y, self.z]
+        diff = np.diff(self.positions, axis=0)
+        self.travelled_dist = np.r_[0.0, np.cumsum(np.linalg.norm(diff, axis=1))]
 
         self.residual_norm = np.sqrt(np.square( self.residual_x) + np.square(self.residual_y) + np.square(self.residual_z))
 
-        self.translation = np.sqrt(np.square(self.vx) + np.square(self.vy) + np.square(self.vz)) * 0.1
+        self.translation = np.sqrt(np.square(self.vx) + np.square(self.vy) + np.square(self.vz)) * 0.1 # 0.1 is the dt
+
 
         self.residual_norm_normalised = self.residual_norm/self.translation
         # self.residual_qnorm = np.sqrt(np.square(1- np.abs(self.residual_qw)) + np.square( self.residual_qx) + np.square(self.residual_qy) + np.square(self.residual_qz))
@@ -141,6 +144,10 @@ class PlotOdom:
 
     def get_positions(self):
         return self.positions
+    
+
+    def get_travelled_dist(self):
+        return self.travelled_dist
 
     def zero_initial_heading(self, heading_length=2.0):
         length = 0.0
