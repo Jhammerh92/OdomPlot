@@ -7,10 +7,10 @@ import os
 processed_lio_data = "20231114_rooftop"
 
 """Ground truth data"""
-ground_truth_data = "/home/slamnuc/Desktop/OdomPlot/Python/ground_truth_data/ground_truth_roof_test02.txt"
+ground_truth_data = "./Python/ground_truth_data/ground_truth_roof_test02.txt"
 
 """Get poses"""
-odom_handler = PlotOdom(data_path="/home/slamnuc/Desktop/OdomPlot/data", name=processed_lio_data)
+odom_handler = PlotOdom(data_path="./data", name=processed_lio_data)
 start_time = odom_handler.get_start_time()
 end_time = odom_handler.get_end_time()
 
@@ -28,7 +28,7 @@ odometry_poses = odom_handler.get_positions()
 fig, ax = plt.subplots()
 ax.plot(odometry_poses[:,0], odometry_poses[:,1], label="LiDAR Inertial Odometry Mid360")
 ax.plot(ground_truth_poses[:,0], ground_truth_poses[:,1], label="Ground Truth - TC GNSS-IMU SPAN")
-plot_confidence_ellipses(ax, ground_truth_poses[:,:2], ground_truth_stds[:,:2])
+# plot_confidence_ellipses(ax, ground_truth_poses[:,:2], ground_truth_stds[:,:2])
 
 ax.set_aspect('equal')
 ax.axis('equal')

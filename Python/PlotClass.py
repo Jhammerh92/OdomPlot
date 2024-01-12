@@ -86,7 +86,7 @@ def rotate_to_nearest_x_axis(vector):
 
 class PlotOdom:
     def __init__(self, data_path:os.PathLike=None , name:str="", save_plots:bool=False) -> None:
-        self.time = None
+        self.time = np.empty(0)
         self.positions = None
         self.x = None
         self.y = None
@@ -132,7 +132,7 @@ class PlotOdom:
         self.name = capfirst(name.removesuffix('_run_data.csv').replace('_', ' '))
         self.plot_name = name
 
-
+        abs_csv_path = os.path.abspath(abs_csv_path)
 
         assert os.path.isfile(abs_csv_path), f"file does not exist: {abs_csv_path}"
 

@@ -13,12 +13,12 @@ processed_lio_data = "20231212_mid70"
 
 
 """Ground truth data"""
-ground_truth_data = "/home/slamnuc/Desktop/OdomPlot/Python/ground_truth_data/ground_truth_lidar_car_test_01_20231212.txt"
+ground_truth_data = "./Python/ground_truth_data/ground_truth_lidar_car_test_01_20231212.txt"
 # ground_truth_data = "ground_truth_data/ground_truth_lidar_car_test_01_20231212.txt"
 
 
 """Get poses"""
-odom_handler = PlotOdom(data_path="/home/slamnuc/Desktop/OdomPlot/data", name=processed_lio_data)
+odom_handler = PlotOdom(data_path="./data", name=processed_lio_data)
 start_time = odom_handler.get_start_time()
 end_time = odom_handler.get_end_time()
 
@@ -29,7 +29,7 @@ ground_truth_poses = gt_handler.get_zeroed_positions()
 ground_truth_stds = gt_handler.get_stds()
 ground_truth_travelled_dist = gt_handler.get_travelled_dist()
 
-odom_handler.rotate_to_heading(gt_initial_heading)
+odom_handler.rotate_to_heading(gt_initial_heading - 0.05)
 odometry_poses = odom_handler.get_positions()
 odometry_travelled_dist = odom_handler.get_travelled_dist()
 
