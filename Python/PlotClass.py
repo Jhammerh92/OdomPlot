@@ -126,10 +126,11 @@ class PlotOdom:
         else:
             if name is None:
                 Exception("need a name of data file")
-            name = name.removesuffix('_run_data.csv') # in case the suffix is there
+            # name = name.removesuffix('_run_data.csv') # in case the suffix is there
+            name = name.replace('_run_data.csv','') # in case the suffix is there
             abs_csv_path = os.path.join(data_path, name + "_run_data.csv")
 
-        self.name = capfirst(name.removesuffix('_run_data.csv').replace('_', ' '))
+        self.name = capfirst(name.replace('_', ' '))
         self.plot_name = name
 
         abs_csv_path = os.path.abspath(abs_csv_path)

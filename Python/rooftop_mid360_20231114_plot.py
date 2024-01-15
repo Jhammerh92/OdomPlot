@@ -21,7 +21,7 @@ ground_truth_poses = gt_handler.get_zeroed_positions()
 ground_truth_stds = gt_handler.get_stds()
 
 # odom_handler.zero_initial_heading(1.0)
-odom_handler.rotate_to_heading(-1.27)
+# odom_handler.rotate_to_heading(-1.27)
 odometry_poses = odom_handler.get_positions()
 
 
@@ -29,6 +29,9 @@ fig, ax = plt.subplots()
 ax.plot(odometry_poses[:,0], odometry_poses[:,1], label="LiDAR Inertial Odometry Mid360")
 ax.plot(ground_truth_poses[:,0], ground_truth_poses[:,1], label="Ground Truth - TC GNSS-IMU SPAN")
 # plot_confidence_ellipses(ax, ground_truth_poses[:,:2], ground_truth_stds[:,:2])
+
+ax.scatter(47.099, 7.281, marker='o', s=5, color='r', label="Ground Truth Base station Antenna B328 in LOAM Map")
+
 
 ax.set_aspect('equal')
 ax.axis('equal')
@@ -40,6 +43,11 @@ xlim = ax.get_xlim()
 xdiff = xlim[1] - xlim[0]
 p = 0.01
 ax.set_xlim([xlim[0] - xdiff*p, xlim[1]+xdiff*p])
+
+
+
+
+
 
 
 
