@@ -21,7 +21,7 @@ ground_truth_data = "./Python/ground_truth_data/ground_truth_lidar_car_test_01_2
 odom_handler = PlotOdom(data_path="./data", name=processed_lio_data)
 odom_handler.load_ground_truth_poses_from_file(ground_truth_data)
 
-odom_handler.plot_odometry_interactive(heading_corretion=0.05)
+odom_handler.plot_odometry_interactive(heading_corretion=0.047)
 
 # gt_handler = InertialExplorerFileHandler()
 # gt_handler.load_ground_truth_poses_from_file(ground_truth_data, start_time, end_time)

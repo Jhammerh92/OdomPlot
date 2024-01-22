@@ -4,7 +4,9 @@ from plot_ground_truth import InertialExplorerFileHandler, plot_confidence_ellip
 import os
 
 """Processed data"""
-processed_lio_data = "20231114_rooftop"
+# processed_lio_data = "20231114_rooftop_bad"
+# processed_lio_data = "20231114_rooftop_ds"
+processed_lio_data = "20231114_rooftop_full"
 
 """Ground truth data"""
 ground_truth_data = "./Python/ground_truth_data/ground_truth_roof_test02.txt"
