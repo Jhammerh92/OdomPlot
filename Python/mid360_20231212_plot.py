@@ -19,51 +19,54 @@ ground_truth_data = "./Python/ground_truth_data/ground_truth_lidar_car_test_01_2
 
 """Get poses"""
 odom_handler = PlotOdom(data_path="./data", name=processed_lio_data)
-start_time = odom_handler.get_start_time()
-end_time = odom_handler.get_end_time()
+odom_handler.load_ground_truth_poses_from_file(ground_truth_data)
+odom_handler.plot_odometry_interactive(heading_corretion=-0.01)
 
-gt_handler = InertialExplorerFileHandler()
-gt_handler.get_ground_truth_poses_from_file(ground_truth_data, start_time, end_time)
-gt_initial_heading = gt_handler.get_initial_heading()
-ground_truth_poses = gt_handler.get_zeroed_positions()
-ground_truth_stds = gt_handler.get_stds()
-ground_truth_travelled_dist = gt_handler.get_travelled_dist()
+# start_time = odom_handler.get_start_time()
+# end_time = odom_handler.get_end_time()
 
-odom_handler.rotate_to_heading(gt_initial_heading + 0.01)
-odometry_poses = odom_handler.get_positions()
-odometry_travelled_dist = odom_handler.get_travelled_dist()
+# gt_handler = InertialExplorerFileHandler()
+# gt_handler.load_ground_truth_poses_from_file(ground_truth_data, start_time, end_time)
+# gt_initial_heading = gt_handler.get_initial_heading()
+# ground_truth_poses = gt_handler.get_zeroed_positions()
+# ground_truth_stds = gt_handler.get_stds()
+# ground_truth_travelled_dist = gt_handler.get_travelled_dist()
 
-"""Plot"""
-gt_label="Ground Truth - TC GNSS-IMU SPAN"
-odometry_label="LiDAR Inertial Odometry"
+# odom_handler.rotate_to_heading(gt_initial_heading + 0.01)
+# odometry_poses = odom_handler.get_positions()
+# odometry_travelled_dist = odom_handler.get_travelled_dist()
+
+# """Plot"""
+# gt_label="Ground Truth - TC GNSS-IMU SPAN"
+# odometry_label="LiDAR Inertial Odometry"
 
 
-fig, axes = plt.subplots(1,2)
-ax = axes[0]
-ax.plot(odometry_poses[:,0], odometry_poses[:,1], label=odometry_label)
-ax.plot(ground_truth_poses[:,0], ground_truth_poses[:,1], label=gt_label)
-# plot_confidence_ellipses(ax, ground_truth_poses[:,:2], ground_truth_stds[:,:2])
+# fig, axes = plt.subplots(1,2)
+# ax = axes[0]
+# ax.plot(odometry_poses[:,0], odometry_poses[:,1], label=odometry_label)
+# ax.plot(ground_truth_poses[:,0], ground_truth_poses[:,1], label=gt_label)
+# # plot_confidence_ellipses(ax, ground_truth_poses[:,:2], ground_truth_stds[:,:2])
 
-ax.set_aspect('equal')
-ax.axis('equal')
-ax.set_xlabel('East [m]')
-ax.set_ylabel('North [m]')
-ax.legend()
+# ax.set_aspect('equal')
+# ax.axis('equal')
+# ax.set_xlabel('East [m]')
+# ax.set_ylabel('North [m]')
+# ax.legend()
 
-xlim = ax.get_xlim()
-xdiff = xlim[1] - xlim[0]
-p = 0.01
-ax.set_xlim([xlim[0] - xdiff*p, xlim[1]+xdiff*p])
+# xlim = ax.get_xlim()
+# xdiff = xlim[1] - xlim[0]
+# p = 0.01
+# ax.set_xlim([xlim[0] - xdiff*p, xlim[1]+xdiff*p])
 
-# ------------------------------------------------
+# # ------------------------------------------------
 
-ax = axes[1]
-ax.plot(odometry_travelled_dist, odometry_poses[:,2], label=odometry_label)
-ax.plot(ground_truth_travelled_dist, ground_truth_poses[:,2], label=gt_label)
-# plot_confidence_ellipses(ax, ground_truth_poses[:,:2], ground_truth_stds[:,:2])
+# ax = axes[1]
+# ax.plot(odometry_travelled_dist, odometry_poses[:,2], label=odometry_label)
+# ax.plot(ground_truth_travelled_dist, ground_truth_poses[:,2], label=gt_label)
+# # plot_confidence_ellipses(ax, ground_truth_poses[:,:2], ground_truth_stds[:,:2])
 
-ax.set_xlabel('Travelled distance [m]')
-ax.set_ylabel('Height [m]')
+# ax.set_xlabel('Travelled distance [m]')
+# ax.set_ylabel('Height [m]')
 
 
 

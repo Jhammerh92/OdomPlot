@@ -1,110 +1,133 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
-from PlotClass import rotate_to_nearest_x_axis, rotate_to_x_axis
+from matplotlib.collections import LineCollection
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
-def plot_confidence_ellipses(ax, points, stds):
-    """
-    Draw ellipses with varying sizes for a set of points.
+from PlotClass import InertialExplorerFileHandler, rotate_to_nearest_x_axis, rotate_to_x_axis, plot_confidence_ellipses,set_axes_equal
+from mpl_toolkits.mplot3d import Axes3D
 
-    Parameters:
-    - points (array-like): Array of points in the form [[x1, y1], [x2, y2], ...].
-    - sizes (array-like): Array of sizes for each ellipse.
+def plot_odometry_colorbar_2D(positions, c_values, ax:plt.Axes=None, arg='', cmap='plasma', plane='xy',lw=3, cbar_label='', cbar_unit=''):
+        # 3d plot of egomotion path - OBS. Z and Y axis are switched, but labelled correctly in plot
+        c = positions[:len(c_values), :]
+        if arg.lower() == "origo":
+            x = [pt[0]-c[0][0] for pt in c]
+            y = [-(pt[1]-c[0][1]) for pt in c]
+            z = [pt[2]-c[0][2] for pt in c]
+        elif arg.lower() == 'kitti':
+            x = [pt[0] for pt in c]
+            y = [-pt[1] for pt in c]
+            z = [pt[2] for pt in c]
+        else:
+            x = [pt[0] for pt in c]
+            y = [pt[1] for pt in c]
+            z = [pt[2] for pt in c]
+        c_values = np.asarray(c_values)
 
-    Returns:
-    - None (displays the plot).
-    """
-    # fig, ax = plt.subplots()
-    scale_factor = 2.0
+        if plane == 'xz':
+            z_temp = z
+            z = y
+            y = z_temp
+        # fig = plt.figure()
+        # ax = fig.add_subplot(1, 1, 1, projection='3d')
 
-    for i, (point, size) in enumerate(zip(points, stds)):
-        ellipse = Ellipse(xy=point, width=size[0]*scale_factor, height=size[1]*scale_factor, edgecolor='none', facecolor='b', alpha=0.1)
-        # ellipse = Ellipse(xy=point, width=scale_factor, height=scale_factor, edgecolor='none', facecolor='b', alpha=0.3)
-        ax.add_patch(ellipse)
+        if ax is None:
+            fig, ax = plt.subplots(1)
 
-        # # Annotate each ellipse with its index
-        # ax.annotate(str(i + 1), xy=point, color='r', ha='center', va='center', fontsize=8)
+        # ax.plot3D(x, z, y, label='positon')
+        # lnWidth = [40 for i in range(len(speed))]
+        points = np.array([x, y]).T.reshape((-1, 1, 2))
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        norm = plt.Normalize(c_values.min(), c_values.max())
+        lc = LineCollection(segments, cmap=cmap, norm=norm, antialiaseds=True)
+        # Set the values used for colormapping
+        lc.set_array(c_values)
+        lc.set_linewidth(lw)
+        line = ax.add_collection(lc)
+        # fig.colorbar(line, ax=ax)
 
-
-class InertialExplorerFileHandler():
-    def __init__(self) -> None:
-        pass
-        
-
-    def get_ground_truth_poses_from_file(self, filename, start_time=None, end_time=None):
-
-        self.data = np.genfromtxt(filename, names=True, skip_header=23, skip_footer=4, dtype=np.float64)
-        print(self.data.dtype.names)
-        self.headers = self.data.dtype.names
-
-        if not (start_time == None):
-            start_time_idx = np.argmin( np.abs(self.data['UTCTime'][1:] - start_time))
-        else: start_time_idx = 0
-        if not (end_time == None):
-            end_time_idx = np.argmin( np.abs( self.data['UTCTime'][1:] - end_time))
-        else: end_time_idx = -1
-
-
-        for header in self.headers:
-            setattr(self, header, self.data[header][start_time_idx:end_time_idx])
-
-        self.positions = np.c_[self.XLL, self.YLL, self.ZLL]
-        self.positions -= self.positions[0,:]
-        
-        self.stds = np.c_[self.SDEast, self.SDNorth, self.SDHeight]
-
-        diff = np.diff(self.positions, axis=0)
-        self.travelled_dist = np.r_[0.0, np.cumsum(np.linalg.norm(diff, axis=1))]
-
-        
-
-    def get_zeroed_positions(self):
-        return self.positions - self.positions[0,:]
-    
-    def get_travelled_dist(self):
-        return self.travelled_dist
-    
-    def get_stds(self):
-        return self.stds
-
-    def zero_initial_heading(self, heading_length=1.0):
-        # initial_xy_heading = -self.Heading[0]
-        # # Create the 2D rotation matrix
-        # derotation_matrix = np.array([[np.cos(initial_xy_heading), -np.sin(initial_xy_heading), 0],
-        #                             [np.sin(initial_xy_heading), np.cos(initial_xy_heading),  0],
-        #                             [0,             0,              1]])
-    
-        length = 0.0
-        i = 0
-        while length < heading_length:
-            i += 1
-            initial_xy_heading_vector = self.positions[i,:2] - self.positions[0,:2]
-            length = np.linalg.norm(initial_xy_heading_vector)
-    
-        derotation_matrix = rotate_to_x_axis(initial_xy_heading_vector)
-
-        self.positions = self.positions @ derotation_matrix
-
-    def get_initial_heading(self, heading_at_length=2.0):
-        length = 0.0
-        i = 0
-        while length < heading_at_length:
-            i += 1
-            initial_xy_heading_vector = self.positions[i,:2] - self.positions[0,:2]
-            length = np.linalg.norm(initial_xy_heading_vector)
-        return self.Heading[i]
+        ax.scatter(x[0], y[0], s=50, color='g')
+        ax.scatter(x[-1], y[-1], s=50, color='r')
 
 
+        # cax = fig.add_axes([0.27, 0.8, 0.5, 0.05])
+        cbar = fig.colorbar(line, ax=ax,aspect=10)
+        cbar.set_label(cbar_unit, rotation=270, labelpad=15)
+        # cbar.ax.yaxis.set_label_position('right')
+        cbar.ax.tick_params(direction="out",labelsize=8)
+        cbar.ax.yaxis.set_ticks_position('left')
+        cbar.ax.set_title(cbar_label, fontsize=8)
+
+
+        ax.set_xlabel('X [m]')
+        ax.set_ylabel('Y [m]')
+        ax.axis('equal')
+
+        # plt.show()
+        return fig, ax
+
+def plot_odometry_colorbar_3D(positions, c_values, ax=None, arg='origo', colorscheme='viridis'):
+    # 3d plot of egomotion path - OBS. Z and Y axis are switched, but labelled correctly in plot
+    c = positions[:len(c_values), :]
+    if arg == "origo":
+        x = [pt[0]-c[0][0] for pt in c]
+        y = [-(pt[1]-c[0][1]) for pt in c]
+        z = [pt[2]-c[0][2] for pt in c]
+    else:
+        x = [pt[0] for pt in c]
+        y = [-pt[1] for pt in c]
+        z = [pt[2] for pt in c]
+    c_values = np.asarray(c_values)
+
+    if ax is None:
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(1, 1, 1, projection='3d')
+    ax.scatter(x[0], ys=z[0], zs=y[0], s=50, c='g')
+    ax.scatter(x[-1], ys=z[-1], zs=y[-1], s=50, c='r')
+
+    # ax.plot(x, z, y, label='')
+
+    points = np.array([x, z, y]).T.reshape((-1, 1, 3))
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    norm = plt.Normalize(c_values.min(), c_values.max())
+    lc = Line3DCollection(segments, cmap=colorscheme, norm=norm)
+    # Set the values used for colormapping
+    lc.set_array(c_values)
+    lc.set_linewidth(2)
+    line = ax.add_collection(lc)
+    fig.colorbar(line, ax=ax)
+
+    ax.set_xlabel('X [m]')
+    ax.set_ylabel('Z [m] - Depth')
+    ax.set_zlabel('Y [m] - Height')
+
+    set_axes_equal(ax)
 
 if __name__ == "__main__":
-    handler = InertialExplorerFileHandler()
+    handler1 = InertialExplorerFileHandler()
+    handler2 = InertialExplorerFileHandler()
 
-    handler.get_ground_truth_poses_from_file("/home/slamnuc/Desktop/OdomPlot/Python/Ground_truth_lidar_car_test_01_20231212.txt")
+    handler1.load_ground_truth_poses_from_file("./Python/ground_truth_data/ground_truth_lidar_car_test_01_20231212.txt")
+    handler2.load_ground_truth_poses_from_file("./Python/ground_truth_data/ground_truth_lidar_car_test_02_20231212.txt")
 
-    # positions = handler.get_positions()
+    positions = np.r_[handler1.positions, handler2.positions]
+    SDHeight = np.r_[handler1.SDHeight, handler2.SDHeight]
+
+    # plot_odometry_colorbar_3D(positions, SDHeight)
+
 
     fig, ax = plt.subplots()
-    ax.plot(handler.XLL, handler.YLL)
-    ax.set_aspect('equal')
+    ax.plot(SDHeight)
+
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    # ax.scatter(x, y, z, c='r', marker='o')
+    ax.plot(positions[:,0], positions[:,1],positions[:,2])
+    # set_axes_equal(ax)
+
+
 
     plt.show()

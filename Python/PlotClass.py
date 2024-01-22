@@ -1,16 +1,45 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+from matplotlib.patches import Ellipse
 from scipy.spatial.transform import Rotation
 import os
 
 # fitness = np.loadtxt('/home/slamnuc/Desktop/fitness_all_keyframes.csv', delimiter=",", dtype=float, usecols=[0])
 # print(fitness)
 
+def set_axes_equal(ax):
+    '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    cubes as cubes, etc..  This is one possible solution to Matplotlib's
+    ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
+
+    Input
+      ax: a matplotlib axis, e.g., as output from plt.gca().
+    '''
+
+    x_limits = ax.get_xlim3d()
+    y_limits = ax.get_ylim3d()
+    z_limits = ax.get_zlim3d()
+
+    x_range = abs(x_limits[1] - x_limits[0])
+    x_middle = np.mean(x_limits)
+    y_range = abs(y_limits[1] - y_limits[0])
+    y_middle = np.mean(y_limits)
+    z_range = abs(z_limits[1] - z_limits[0])
+    z_middle = np.mean(z_limits)
+
+    # The plot bounding box is a sphere in the sense of the infinity
+    # norm, hence I call half the max range the plot radius.
+    plot_radius = 0.5*max([x_range, y_range, z_range])
+
+    ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+    ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+    ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+
 def moving_average(a, n=3) :
-        ret = np.cumsum(a, dtype=float)
-        ret[n:] = ret[n:] - ret[:-n]
-        return ret[n - 1:] / n
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
 
 def capfirst(s:str):
     return s[:1].upper() + s[1:]
@@ -46,7 +75,7 @@ def rotate_to_y_axis(vector):
     # angle = np.arctan2(normalized_vector[0], normalized_vector[1])
     # angle = np.arccos(normalized_vector.dot(np.array([[0, 1]]).T)).item()
 
-    y_vector = np.array([[0, 1]]).T
+    # y_vector = np.array([[0, 1]]).T
 
     angle = - np.arctan2(normalized_vector[0], normalized_vector[1]).item()
     # angle = (angle + np.pi) % (2 * np.pi) - np.pi
@@ -57,7 +86,6 @@ def rotate_to_y_axis(vector):
                                 [0,             0,              1]])
     
     return rotation_matrix
-
 
 def rotate_to_nearest_x_axis(vector):
     # Normalize the input vector
@@ -82,10 +110,115 @@ def rotate_to_nearest_x_axis(vector):
     
     return rotation_matrix
 
+def plot_confidence_ellipses(ax, points, stds):
+    """
+    Draw ellipses with varying sizes for a set of points.
 
+    Parameters:
+    - points (array-like): Array of points in the form [[x1, y1], [x2, y2], ...].
+    - sizes (array-like): Array of sizes for each ellipse.
+
+    Returns:
+    - None (displays the plot).
+    """
+    # fig, ax = plt.subplots()
+    scale_factor = 2.0
+
+    for i, (point, size) in enumerate(zip(points, stds)):
+        ellipse = Ellipse(xy=point, width=size[0]*scale_factor, height=size[1]*scale_factor, edgecolor='none', facecolor='b', alpha=0.1)
+        # ellipse = Ellipse(xy=point, width=scale_factor, height=scale_factor, edgecolor='none', facecolor='b', alpha=0.3)
+        ax.add_patch(ellipse)
+
+        # # Annotate each ellipse with its index
+        # ax.annotate(str(i + 1), xy=point, color='r', ha='center', va='center', fontsize=8)
+
+
+class InertialExplorerFileHandler():
+    def __init__(self) -> None:
+        self.SDEast = None
+        self.SDHeight = None
+        self.SDNorth = None
+        self.XLL = None
+        self.YLL = None
+        self.ZLL = None
+        self.Heading = np.array(0)
+        self.UTCTime = np.array(0)
+        self.loaded_data = False
+        
+
+    def load_ground_truth_poses_from_file(self, filename, start_time=None, end_time=None):
+        self.data = np.genfromtxt(filename, names=True, skip_header=23, skip_footer=4, dtype=np.float64)
+        print(self.data.dtype.names)
+        self.headers = self.data.dtype.names
+
+        if not (start_time == None):
+            start_time_idx = np.argmin( np.abs(self.data['UTCTime'][1:] - start_time))
+        else: start_time_idx = 0
+        if not (end_time == None):
+            end_time_idx = np.argmin( np.abs( self.data['UTCTime'][1:] - end_time))
+        else: end_time_idx = -1
+
+
+        for header in self.headers:
+            setattr(self, header, self.data[header][start_time_idx:end_time_idx])
+
+        self.positions = np.c_[self.XLL, self.YLL, self.ZLL]
+        # self.positions -= self.positions[0,:]
+        
+        self.stds = np.c_[self.SDEast, self.SDNorth, self.SDHeight]
+
+        diff = np.diff(self.positions[:,:2], axis=0)
+        self.travelled_dist = np.r_[0.0, np.cumsum(np.linalg.norm(diff, axis=1))]
+        self.loaded_data = True
+
+    def get_time(self):
+        return self.UTCTime
+        
+    def get_mast_location(self):
+        return -self.positions[0,:]
+
+    def get_positions(self):
+        return self.positions
+    
+    def get_zeroed_positions(self):
+        return self.positions - self.positions[0,:]
+    
+    def get_travelled_dist(self):
+        return self.travelled_dist
+    
+    def get_stds(self):
+        return self.stds
+
+    def zero_initial_heading(self, heading_length=1.0):
+        # initial_xy_heading = -self.Heading[0]
+        # # Create the 2D rotation matrix
+        # derotation_matrix = np.array([[np.cos(initial_xy_heading), -np.sin(initial_xy_heading), 0],
+        #                             [np.sin(initial_xy_heading), np.cos(initial_xy_heading),  0],
+        #                             [0,             0,              1]])
+    
+        length = 0.0
+        i = 0
+        while length < heading_length:
+            i += 1
+            initial_xy_heading_vector = self.positions[i,:2] - self.positions[0,:2]
+            length = np.linalg.norm(initial_xy_heading_vector)
+    
+        derotation_matrix = rotate_to_x_axis(initial_xy_heading_vector)
+
+        self.positions = self.positions @ derotation_matrix
+
+    def get_initial_heading(self, heading_at_length=2.0):
+        length = 0.0
+        i = 0
+        while length < heading_at_length:
+            i += 1
+            initial_xy_heading_vector = self.positions[i,:2] - self.positions[0,:2]
+            length = np.linalg.norm(initial_xy_heading_vector)
+        return self.Heading[i]
 
 class PlotOdom:
     def __init__(self, data_path:os.PathLike=None , name:str="", save_plots:bool=False) -> None:
+        self.IEF = InertialExplorerFileHandler()
         self.time = np.empty(0)
         self.positions = None
         self.x = None
@@ -154,12 +287,12 @@ class PlotOdom:
 
         # self.x = self.data['x']
         self.positions = np.c_[self.x, self.y, self.z]
-        diff = np.diff(self.positions, axis=0)
+        diff = np.diff(self.positions[:,:2], axis=0)
         self.travelled_dist = np.r_[0.0, np.cumsum(np.linalg.norm(diff, axis=1))]
 
         self.residual_norm = np.sqrt(np.square( self.residual_x) + np.square(self.residual_y) + np.square(self.residual_z))
 
-        self.translation = np.sqrt(np.square(self.vx) + np.square(self.vy) + np.square(self.vz)) * 0.1 # 0.1 is the dt
+        self.translation = np.sqrt(np.square(self.vx) + np.square(self.vy) + np.square(self.vz)) * 0.1 # 0.1 is the dt of the scans
 
 
         self.residual_norm_normalised = self.residual_norm/self.translation
@@ -169,7 +302,7 @@ class PlotOdom:
         self.fig = None
         self.axes= None
 
-        plt.rcParams['figure.figsize'] = (9, 5)
+        plt.rcParams['figure.figsize'] = (7, 9)
         plt.rcParams['figure.constrained_layout.use'] = True
         plt.rcParams['font.size'] = 10
         plt.rcParams['axes.grid'] = True
@@ -179,10 +312,15 @@ class PlotOdom:
 
         # print(plt.rcParams)
 
+    def load_ground_truth_poses_from_file(self, file):
+        return self.IEF.load_ground_truth_poses_from_file(file, self.start_time, self.end_time)
+
+    def get_time(self):
+        return self.time
+
     def get_positions(self):
         return self.positions
     
-
     def get_travelled_dist(self):
         return self.travelled_dist
 
@@ -399,7 +537,7 @@ class PlotOdom:
             # self.fig = fig
 
         if timewise:
-            self._plot_timewise( plot_call)
+            self._plot_timewise(plot_call)
         else:
             plot_call()
 
@@ -503,7 +641,6 @@ class PlotOdom:
         # else:
         return fig, axes
 
-
     # def plot_odometry_2D_timewise(self, axes=None, arg='', label='', **kwargs):
     #     self._general_plot_handle(self._plot_odometry_2D_timewise, False, ax=axes, )
 
@@ -557,8 +694,6 @@ class PlotOdom:
         # else:
         return fig, axes
         
-
-
     def plot_odometry_colorbar_2D(self, c_values, ax:plt.Axes=None, arg='', cmap='plasma', plane='xy',lw=3, cbar_label='', cbar_unit=''):
         # 3d plot of egomotion path - OBS. Z and Y axis are switched, but labelled correctly in plot
         c = self.positions[:len(c_values), :]
@@ -620,25 +755,147 @@ class PlotOdom:
         # plt.show()
         return self.fig, ax
 
+    def plot_odometry_interactive(self, heading_corretion=0.0):
+        """Interactave plots callback on mouse hover"""
 
-class PlotKalman(PlotOdom):
-    def __init__(self, csv_path) -> None:
-        self.path = csv_path
-        self.data = np.genfromtxt(csv_path, dtype=float, delimiter=',', names=True, skip_header=0)
-        self.headers = self.data.dtype.names
-        for header in self.headers:
-            setattr(self, header, self.data[header])
-        # self.x = self.data['x']
-        self.positions = np.c_[self.x, self.y, self.z]
+        def set_visable_all(bool):
+            red_point.set_visible(bool)
+            red_point_vline.set_visible(bool)
+            red_point_hline.set_visible(bool)
+            height_vline.set_visible(bool)
 
-    def plot_state_euler(self):
-        plt.figure()
-        plt.plot( self.time, np.rad2deg(self.ex),label="Roll")
-        plt.plot( self.time, np.rad2deg(self.ey),label="Pitch")
-        plt.plot( self.time, np.rad2deg(self.ez),label="Yaw")
-        plt.xlabel("Time [s]")
-        plt.ylabel("Angle [°]")
-        plt.legend()
+        def red_point_update(idx):
+            pos = odom_sc.get_offsets()[idx]
+            red_point.set_offsets(pos)
+            red_point_zoom.set_offsets(pos)
+            x,y = pos.data
+            red_point_vline.set_xdata(x)
+            red_point_hline.set_ydata(y)
+            zoom_dist = np.max(data_deltas[:2]) / 20.0 / 2.0
+            ax_zoom.set_xlim(x - zoom_dist, x + zoom_dist)
+            ax_zoom.set_ylim(y - zoom_dist, y + zoom_dist)
+
+        def vline_update(idx):
+            height_vline.set_xdata(odometry_travelled_dist[idx])
+
+        def get_closest_data_idx(x,y):
+            mouse_xy = np.array([x,y])
+            dist_to_mouse = np.linalg.norm(odometry_poses[:,:2] - mouse_xy, axis=1, ord=1)
+            idx = np.where(abs(dist_to_mouse) == min(abs(dist_to_mouse)))[0].item()
+            return idx
+
+        def hover(event):
+            if event.inaxes == ax: # checks if the mouse/"event" is inside the desired plot axis
+                idx = get_closest_data_idx(event.xdata, event.ydata)
+                red_point_update(idx) # updates the plot annotations by the index found
+                vline_update(idx) # updates the plot annotations by the index found
+                set_visable_all(True)
+                fig.canvas.draw_idle() # redraws the plot when able to
+                fig_zoom.canvas.draw_idle()
+            elif event.inaxes == ax_height: # checks if the mouse/"event" is inside the desired plot axis
+                idx = np.where(abs(odometry_travelled_dist - event.xdata)==min(abs(odometry_travelled_dist - event.xdata)))[0].item()
+                red_point_update(idx) # updates the plot annotations by the index found
+                vline_update(idx) # updates the plot annotations by the index found
+                set_visable_all(True)
+                fig.canvas.draw_idle() # redraws the plot when able to
+                fig_zoom.canvas.draw_idle()
+            else: # else happens when mouse is not over any point in the plot
+                set_visable_all(False)
+                fig.canvas.draw_idle() # redraws the plot when able to
+                fig_zoom.canvas.draw_idle()
+
+        gt_initial_heading = self.IEF.get_initial_heading()
+        ground_truth_poses = self.IEF.get_zeroed_positions()
+        ground_truth_travelled_dist = self.IEF.get_travelled_dist()
+        # ground_truth_stds = gt_handler.get_stds()
+
+        self.rotate_to_heading(gt_initial_heading - heading_corretion)
+        odometry_poses = self.get_positions()
+        odometry_travelled_dist = self.get_travelled_dist()
+
+        data_deltas = np.max(ground_truth_poses, axis=0) - np.min(ground_truth_poses, axis=0)
+
+        """Plots"""
+        fig, axes = plt.subplots(2,1, gridspec_kw={'height_ratios': [5, 1]})
+        ax = axes[0]
+
+        ax.scatter(ground_truth_poses[:,0], ground_truth_poses[:,1],color="C1" ,marker='o', label="_", s=0)
+        ax.plot(ground_truth_poses[:,0], ground_truth_poses[:,1],color="C1", label="Ground Truth - TC GNSS-IMU SPAN")
+
+        odom_sc = ax.scatter(odometry_poses[:,0], odometry_poses[:,1], marker='o', color='C0', label="_", s=0)
+        ax.plot(odometry_poses[:,0], odometry_poses[:,1], color='C0',label="LiDAR Inertial Odometry")
+
+        xlim = ax.get_xlim()
+        xdiff = xlim[1] - xlim[0]
+        p = 0.01
+        ax.set_xlim([xlim[0] - xdiff*p, xlim[1]+xdiff*p])
+
+        red_point = ax.scatter(0, 0, color='r')
+        red_point.set_visible(False)
+        red_point_vline = ax.axvline(x=0)
+        red_point_hline = ax.axhline(y=0)
+        red_point_vline.set_visible(False)
+        red_point_hline.set_visible(False)
+        # plot_confidence_ellipses(ax, ground_truth_poses[:,:2], ground_truth_stds[:,:2])
+
+        ax.set_aspect('equal')
+        ax.axis('equal')
+        ax.set_xlabel('East [m]')
+        ax.set_ylabel('North [m]')
+        ax.legend()
+
+
+        ax_height = axes[1]
+        ax_height.plot(odometry_travelled_dist, odometry_poses[:,2], label="LiDAR Inertial Odometry")
+        height_sc = ax_height.scatter(odometry_travelled_dist, odometry_poses[:,2], marker='o', color='C0', label="_", s=0)
+
+        ax_height.plot(ground_truth_travelled_dist, ground_truth_poses[:,2], label="LiDAR Inertial Odometry")
+
+        height_vline = ax_height.axvline(x=0)
+        height_vline.set_visible(False)
+
+        ax_height.set_xlabel('Travelled distance [m]')
+        ax_height.set_ylabel('Height [m]')
+
+
+
+        fig_zoom, ax_zoom = plt.subplots(figsize=(4,4),)
+        ax_zoom.scatter(odometry_poses[:,0], odometry_poses[:,1], marker='o', color='C0', label="_", s=2)
+        ax_zoom.plot(odometry_poses[:,0], odometry_poses[:,1], color='C0',label="LiDAR Inertial Odometry")
+
+        ax_zoom.scatter(ground_truth_poses[:,0], ground_truth_poses[:,1],color="C1" ,marker='o', label="_", s=2)
+        ax_zoom.plot(ground_truth_poses[:,0], ground_truth_poses[:,1],color="C1", label="Ground Truth - TC GNSS-IMU SPAN")
+
+        red_point_zoom = ax_zoom.scatter(0, 0, color='r')
+
+        ax_zoom.set_aspect('equal')
+        ax_zoom.legend()
+
+
+                
+        fig.canvas.mpl_connect("motion_notify_event", hover) # checks the open plot window for mouse events and triggers the "hover" callback function on event
+
+
+
+
+# class PlotKalman(PlotOdom):
+#     def __init__(self, csv_path) -> None:
+#         self.path = csv_path
+#         self.data = np.genfromtxt(csv_path, dtype=float, delimiter=',', names=True, skip_header=0)
+#         self.headers = self.data.dtype.names
+#         for header in self.headers:
+#             setattr(self, header, self.data[header])
+#         # self.x = self.data['x']
+#         self.positions = np.c_[self.x, self.y, self.z]
+
+#     def plot_state_euler(self):
+#         plt.figure()
+#         plt.plot( self.time, np.rad2deg(self.ex),label="Roll")
+#         plt.plot( self.time, np.rad2deg(self.ey),label="Pitch")
+#         plt.plot( self.time, np.rad2deg(self.ez),label="Yaw")
+#         plt.xlabel("Time [s]")
+#         plt.ylabel("Angle [°]")
+#         plt.legend()
 
 
 if __name__ == "__main__":
